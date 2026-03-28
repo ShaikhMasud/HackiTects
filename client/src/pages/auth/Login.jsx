@@ -16,7 +16,7 @@ export default function Login() {
     const [formData, setFormData] = useState({
         email: "",
         password: "",
-        role: "staff",
+        role: "staff", // UI only
     });
 
     const [showPassword, setShowPassword] = useState(false);
@@ -31,13 +31,42 @@ export default function Login() {
     };
 
     const handleSubmit = async () => {
-        setIsLoading(true);
+        try {
+            setIsLoading(true);
 
-        setTimeout(() => {
-            if (formData.role === "staff") navigate("/staff");
-            else if (formData.role === "doctor") navigate("/doctor");
-            else navigate("/admin");
-        }, 800);
+            const res = await fetch("http://localhost:5000/api/auth/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email: formData.email,
+                    password: formData.password,
+                }),
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.message || "Login failed");
+            }
+
+            // ✅ Store token & user
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("user", JSON.stringify(data.user));
+
+            // ✅ Redirect based on backend role
+            const role = data.user.role;
+
+            if (role === "staff") navigate("/staff");
+            else if(role== "admin") navigate("/admin");
+            else if (role === "doctor") navigate("/doctor");
+
+        } catch (err) {
+            alert(err.message);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -51,19 +80,15 @@ export default function Login() {
                     className="h-full w-full object-cover"
                 />
 
-                {/* Overlay */}
                 <div className="absolute inset-0 bg-gradient-to-r from-blue-900/70 to-transparent"></div>
 
-                {/* Curve effect */}
-                <div className="absolute right-0 top-0 h-full w-24 bg-white"
-                    style={{ clipPath: "ellipse(100% 100% at 100% 50%)" }}>
-                </div>
+                <div
+                    className="absolute right-0 top-0 h-full w-24 bg-white"
+                    style={{ clipPath: "ellipse(100% 100% at 100% 50%)" }}
+                ></div>
 
-                {/* Text on image */}
                 <div className="absolute bottom-10 left-10 text-white max-w-sm">
-                    <h2 className="text-3xl font-bold mb-2">
-                        WardWatch
-                    </h2>
+                    <h2 className="text-3xl font-bold mb-2">WardWatch</h2>
                     <p className="text-sm opacity-90">
                         Smart real-time hospital ward monitoring system
                     </p>
@@ -135,6 +160,8 @@ export default function Login() {
                             </div>
                         </div>
 
+                        
+
                         {/* Button */}
                         <button
                             onClick={handleSubmit}
@@ -153,15 +180,6 @@ export default function Login() {
                                 </>
                             )}
                         </button>
-                        <p className="text-sm text-center text-gray-500 mt-4">
-                            Don’t have credentials?{" "}
-                            <span
-                                onClick={() => navigate("/register")}
-                                className="text-blue-700 font-medium cursor-pointer hover:underline"
-                            >
-                                Register here
-                            </span>
-                        </p>
                     </div>
                 </div>
             </div>
