@@ -2,10 +2,7 @@ const Escalation = require("../models/Escalation");
 const Discharge = require("../models/Discharge");
 const Bed = require("../models/Bed");
 const { sendEvent } = require("../sse/eventStream");
-const Patient = require("../models/Patient");
-const Bed = require("../models/Bed");
-const Escalation = require("../models/Escalation");
-const { sendEvent } = require("../sse/eventStream");
+const Patient = require("../models/Patients");
 
 // DISCHARGE DELAY CHECK
 exports.checkDischargeDelays = async (wardId) => {
