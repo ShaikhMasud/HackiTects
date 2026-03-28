@@ -1,4 +1,6 @@
 import Button from "./Button";
+import { Download, FileText } from "lucide-react";
+import { toast } from "react-toastify";
 
 const PatientClinicalTable = ({ patients, onReview }) => {
   return (
@@ -19,6 +21,7 @@ const PatientClinicalTable = ({ patients, onReview }) => {
                 <th className="px-8 py-4 text-left text-[11px] font-extrabold text-gray-400 uppercase tracking-widest">Vitals Summary</th>
                 <th className="px-8 py-4 text-left text-[11px] font-extrabold text-gray-400 uppercase tracking-widest">Medications</th>
                 <th className="px-8 py-4 text-left text-[11px] font-extrabold text-gray-400 uppercase tracking-widest">Status</th>
+                <th className="px-8 py-4 text-left text-[11px] font-extrabold text-gray-400 uppercase tracking-widest">Report</th>
                 <th className="px-8 py-4 text-right text-[11px] font-extrabold text-gray-400 uppercase tracking-widest">Action</th>
               </tr>
             </thead>
@@ -56,6 +59,17 @@ const PatientClinicalTable = ({ patients, onReview }) => {
                     }`}>
                       {p.status.replace(/_/g, ' ')}
                     </span>
+                  </td>
+                  <td className="px-8 py-6 whitespace-nowrap">
+                    {p.status === 'cleared_for_discharge' ? (
+                       <button onClick={() => toast.info(`Downloading Discharge Summary for ${p.name}...`)} className="flex items-center justify-center gap-1.5 px-3 py-1.5 border-2 border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white transition-colors rounded text-[9px] font-extrabold uppercase tracking-widest">
+                          <Download size={12} strokeWidth={3} /> Discharge
+                       </button>
+                    ) : (
+                       <button onClick={() => toast.info(`Downloading Clinical History for ${p.name}...`)} className="flex items-center justify-center gap-1.5 px-3 py-1.5 border-2 border-gray-200 text-gray-400 hover:border-gray-900 hover:text-gray-900 transition-colors rounded text-[9px] font-extrabold uppercase tracking-widest">
+                          <FileText size={12} strokeWidth={3} /> Clinical
+                       </button>
+                    )}
                   </td>
                   <td className="px-8 py-6 whitespace-nowrap text-right">
                     <Button variant="outline" size="sm" onClick={() => onReview(p)} className="text-gray-900 bg-white border-2 border-gray-200 hover:border-gray-900 shadow-none text-[10px] px-4 py-2 font-extrabold uppercase tracking-widest">
