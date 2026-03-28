@@ -1,109 +1,181 @@
 import { useState } from "react";
+import { toast } from "react-toastify";
+import {
+    Eye,
+    EyeOff,
+    Loader2,
+    Mail,
+    Lock,
+    Stethoscope,
+    ArrowRight,
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-function Login() {
-  const navigate = useNavigate();
+export default function Login() {
+    const navigate = useNavigate();
 
-  const [form, setForm] = useState({
-    email: "",
-    password: "",
-    role: "staff",
-  });
-
-  const handleChange = (e) => {
-    setForm({
-      ...form,
-      [e.target.name]: e.target.value,
+    const [formData, setFormData] = useState({
+        email: "",
+        password: "",
+        role: "staff", // UI only
     });
-  };
 
-  const handleLogin = (e) => {
-    e.preventDefault();
+    const [showPassword, setShowPassword] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
 
-    // 🚨 For hackathon: no backend, just redirect based on role
-    if (form.role === "staff") navigate("/staff");
-    else if (form.role === "doctor") navigate("/doctor");
-    else navigate("/admin");
-  };
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData((prev) => ({
+            ...prev,
+            [name]: value,
+        }));
+    };
 
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      
-      <div className="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
-        
-        {/* Title */}
-        <h1 className="text-3xl font-bold text-center text-blue-600 mb-6">
-          WardWatch 🚑
-        </h1>
+    const handleSubmit = async () => {
+        try {
+            setIsLoading(true);
 
-        <p className="text-center text-gray-500 mb-6">
-          Login to continue
-        </p>
+            const res = await fetch("http://localhost:5000/api/auth/login", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    email: formData.email,
+                    password: formData.password,
+                }),
+            });
 
-        {/* Form */}
-        <form onSubmit={handleLogin} className="space-y-4">
-          
-          {/* Email */}
-          <div>
-            <label className="block text-sm font-medium text-gray-600">
-              Email
-            </label>
-            <input
-              type="email"
-              name="email"
-              placeholder="Enter email"
-              value={form.email}
-              onChange={handleChange}
-              className="w-full mt-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              required
-            />
-          </div>
+            const data = await res.json();
 
-          {/* Password */}
-          <div>
-            <label className="block text-sm font-medium text-gray-600">
-              Password
-            </label>
-            <input
-              type="password"
-              name="password"
-              placeholder="Enter password"
-              value={form.password}
-              onChange={handleChange}
-              className="w-full mt-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-              required
-            />
-          </div>
+            if (!res.ok) {
+                throw new Error(data.message || "Login failed");
+            }
 
-          {/* Role */}
-          <div>
-            <label className="block text-sm font-medium text-gray-600">
-              Select Role
-            </label>
-            <select
-              name="role"
-              value={form.role}
-              onChange={handleChange}
-              className="w-full mt-1 p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              <option value="staff">Staff</option>
-              <option value="doctor">Doctor</option>
-              <option value="admin">Admin</option>
-            </select>
-          </div>
+            // ✅ Store token & user
+            localStorage.setItem("token", data.token);
+            localStorage.setItem("user", JSON.stringify(data.user));
 
-          {/* Button */}
-          <button
-            type="submit"
-            className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-200"
-          >
-            Login
-          </button>
-        </form>
+            // ✅ Redirect based on backend role
+            const role = data.user.role;
 
-      </div>
-    </div>
-  );
+            if (role === "staff") navigate("/staff");
+            else if (role == "admin") navigate("/admin");
+            else if (role === "doctor") navigate("/doctor");
+
+        } catch (err) {
+            toast.error(err.message || "Authentication failed.");
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    return (
+        <div className="min-h-screen flex bg-blue-50 p-4 lg:p-6 gap-4">
+
+            {/* LEFT IMAGE SECTION */}
+            <div className="hidden md:block w-1/2 relative rounded-[40px] overflow-hidden shadow-2xl border border-gray-200">
+                <img
+                    src="https://images.unsplash.com/photo-1586773860418-d37222d8fce3"
+                    alt="hospital"
+                    className="h-full w-full object-cover"
+                />
+
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-900/60 to-transparent"></div>
+
+                <div className="absolute bottom-16 left-16 text-white max-w-md">
+                    <h2 className="text-5xl font-black tracking-tight mb-4 uppercase">WardWatch</h2>
+                    <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-300">
+                        Smart Real-Time Hospital Ward Monitoring System
+                    </p>
+                </div>
+            </div>
+
+            {/* RIGHT LOGIN SECTION */}
+            <div className="flex items-center justify-center w-full md:w-1/2 px-6">
+
+                <div className="w-full max-w-md bg-white border border-gray-200 rounded-2xl shadow-sm p-10">
+
+                    {/* Header */}
+                    <div className="text-center mb-10 border-b border-gray-100 pb-6">
+                        <div className="w-14 h-14 bg-gradient-to-r from-blue-900 to-blue-700 rounded-xl mx-auto mb-4 flex items-center justify-center shadow-md">
+                            <Stethoscope className="w-6 h-6 text-white" />
+                        </div>
+                        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight uppercase">
+                            Welcome Back
+                        </h1>
+
+                        <p className="text-[10px] font-extrabold text-gray-400 mt-2 uppercase tracking-widest">
+                            Login to continue
+                        </p>
+                    </div>
+
+                    <div className="space-y-6">
+
+                        {/* Email */}
+                        <div>
+                            <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block">
+                                Email Address
+                            </label>
+                            <div className="relative">
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                <input
+                                    name="email"
+                                    type="email"
+                                    value={formData.email}
+                                    onChange={handleInputChange}
+                                    className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-sm font-bold placeholder:font-bold placeholder:text-gray-300"
+                                    placeholder="Enter email"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Password */}
+                        <div>
+                            <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block">
+                                Password
+                            </label>
+                            <div className="relative">
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                <input
+                                    name="password"
+                                    type={showPassword ? "text" : "password"}
+                                    value={formData.password}
+                                    onChange={handleInputChange}
+                                    className="w-full pl-12 pr-12 py-3 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-sm font-bold placeholder:font-bold placeholder:text-gray-300"
+                                    placeholder="Enter password"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-900 transition-colors"
+                                >
+                                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Button */}
+                        <button
+                            onClick={handleSubmit}
+                            disabled={isLoading}
+                            className="w-full bg-gray-900 text-white py-4 rounded font-extrabold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-black transition shadow-none mt-4"
+                        >
+                            {isLoading ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 animate-spin" />
+                                    Logging in...
+                                </>
+                            ) : (
+                                <>
+                                    Secure Login
+                                    <ArrowRight size={16} />
+                                </>
+                            )}
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
 }
-
-export default Login;
