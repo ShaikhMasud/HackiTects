@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { toast } from "react-toastify";
 import {
     Eye,
     EyeOff,
@@ -59,114 +60,106 @@ export default function Login() {
             const role = data.user.role;
 
             if (role === "staff") navigate("/staff");
-            else if(role== "admin") navigate("/admin");
+            else if (role == "admin") navigate("/admin");
             else if (role === "doctor") navigate("/doctor");
 
         } catch (err) {
-            alert(err.message);
+            toast.error(err.message || "Authentication failed.");
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen flex">
+        <div className="min-h-screen flex bg-blue-50 p-4 lg:p-6 gap-4">
 
             {/* LEFT IMAGE SECTION */}
-            <div className="hidden md:block w-1/2 relative">
+            <div className="hidden md:block w-1/2 relative rounded-[40px] overflow-hidden shadow-2xl border border-gray-200">
                 <img
                     src="https://images.unsplash.com/photo-1586773860418-d37222d8fce3"
                     alt="hospital"
                     className="h-full w-full object-cover"
                 />
 
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-900/70 to-transparent"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-blue-900/60 to-transparent"></div>
 
-                <div
-                    className="absolute right-0 top-0 h-full w-24 bg-white"
-                    style={{ clipPath: "ellipse(100% 100% at 100% 50%)" }}
-                ></div>
-
-                <div className="absolute bottom-10 left-10 text-white max-w-sm">
-                    <h2 className="text-3xl font-bold mb-2">WardWatch</h2>
-                    <p className="text-sm opacity-90">
-                        Smart real-time hospital ward monitoring system
+                <div className="absolute bottom-16 left-16 text-white max-w-md">
+                    <h2 className="text-5xl font-black tracking-tight mb-4 uppercase">WardWatch</h2>
+                    <p className="text-[10px] font-extrabold uppercase tracking-widest text-gray-300">
+                        Smart Real-Time Hospital Ward Monitoring System
                     </p>
                 </div>
             </div>
 
             {/* RIGHT LOGIN SECTION */}
-            <div className="flex items-center justify-center w-full md:w-1/2 px-6 bg-gradient-to-br from-blue-50 via-white to-blue-100">
+            <div className="flex items-center justify-center w-full md:w-1/2 px-6">
 
-                <div className="w-full max-w-md bg-white/80 backdrop-blur-lg border border-gray-200 rounded-2xl shadow-xl p-8">
+                <div className="w-full max-w-md bg-white border border-gray-200 rounded-2xl shadow-sm p-10">
 
                     {/* Header */}
-                    <div className="text-center mb-8">
+                    <div className="text-center mb-10 border-b border-gray-100 pb-6">
                         <div className="w-14 h-14 bg-gradient-to-r from-blue-900 to-blue-700 rounded-xl mx-auto mb-4 flex items-center justify-center shadow-md">
                             <Stethoscope className="w-6 h-6 text-white" />
                         </div>
-
-                        <h1 className="text-2xl font-semibold text-gray-900">
+                        <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight uppercase">
                             Welcome Back
                         </h1>
 
-                        <p className="text-sm text-gray-500 mt-1">
+                        <p className="text-[10px] font-extrabold text-gray-400 mt-2 uppercase tracking-widest">
                             Login to continue
                         </p>
                     </div>
 
-                    <div className="space-y-5">
+                    <div className="space-y-6">
 
                         {/* Email */}
                         <div>
-                            <label className="text-sm font-medium text-gray-600 mb-1 block">
-                                Email
+                            <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block">
+                                Email Address
                             </label>
                             <div className="relative">
-                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                                 <input
                                     name="email"
                                     type="email"
                                     value={formData.email}
                                     onChange={handleInputChange}
-                                    className="w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition"
-                                    placeholder="Enter your email"
+                                    className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-sm font-bold placeholder:font-bold placeholder:text-gray-300"
+                                    placeholder="Enter email"
                                 />
                             </div>
                         </div>
 
                         {/* Password */}
                         <div>
-                            <label className="text-sm font-medium text-gray-600 mb-1 block">
+                            <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block">
                                 Password
                             </label>
                             <div className="relative">
-                                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                                 <input
                                     name="password"
                                     type={showPassword ? "text" : "password"}
                                     value={formData.password}
                                     onChange={handleInputChange}
-                                    className="w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-600 focus:border-transparent outline-none transition"
-                                    placeholder="Enter your password"
+                                    className="w-full pl-12 pr-12 py-3 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-sm font-bold placeholder:font-bold placeholder:text-gray-300"
+                                    placeholder="Enter password"
                                 />
                                 <button
                                     type="button"
                                     onClick={() => setShowPassword(!showPassword)}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-900 transition-colors"
                                 >
                                     {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                                 </button>
                             </div>
                         </div>
 
-                        
-
                         {/* Button */}
                         <button
                             onClick={handleSubmit}
                             disabled={isLoading}
-                            className="w-full bg-gradient-to-r from-blue-900 to-blue-700 text-white py-2.5 rounded-lg font-medium flex items-center justify-center gap-2 hover:opacity-95 transition shadow-md"
+                            className="w-full bg-gray-900 text-white py-4 rounded font-extrabold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-black transition shadow-none mt-4"
                         >
                             {isLoading ? (
                                 <>
@@ -175,7 +168,7 @@ export default function Login() {
                                 </>
                             ) : (
                                 <>
-                                    Sign in
+                                    Secure Login
                                     <ArrowRight size={16} />
                                 </>
                             )}

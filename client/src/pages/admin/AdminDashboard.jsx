@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 import StatCard from "../../components/StatCard";
 import EscalationFlagsAlert from "../../components/EscalationFlagsAlert";
@@ -79,6 +80,8 @@ const AdminDashboard = () => {
     password: "",
     role: "staff",
   });
+
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleMemberChange = (e) => {
     setMemberForm({
@@ -459,14 +462,23 @@ const AdminDashboard = () => {
           />
 
           {/* Password */}
-          <input
-            type="password"
-            name="password"
-            placeholder="Password"
-            value={memberForm.password}
-            onChange={handleMemberChange}
-            className="w-full border p-2 rounded-lg"
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? "text" : "password"}
+              name="password"
+              placeholder="Password"
+              value={memberForm.password}
+              onChange={handleMemberChange}
+              className="w-full border p-2 rounded-lg outline-none focus:ring-2 focus:ring-blue-900 pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 focus:outline-none"
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
+          </div>
 
           {/* Role */}
           <select
