@@ -26,7 +26,68 @@ const DoctorDashboard = () => {
   const [editingCondition, setEditingCondition] = useState(false);
   const [tempCondition, setTempCondition] = useState("");
 
+  const [newVitalsBp, setNewVitalsBp] = useState("");
+  const [newVitalsHr, setNewVitalsHr] = useState("");
+  const [newVitalsTemp, setNewVitalsTemp] = useState("");
+  const [recordingVitals, setRecordingVitals] = useState(false);
+
+  const [newMedication, setNewMedication] = useState("");
+  const [addingMed, setAddingMed] = useState(false);
+
   const handoverPrintRef = useRef(null);
+
+  const handleAddMedication = async () => {
+    if (!newMedication.trim()) return toast.error("Please enter a medication name");
+    
+    setAddingMed(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`http://localhost:5000/api/patients/${selectedPatient.id}/medications`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ medication: newMedication })
+      });
+      if (res.ok) {
+        toast.success("Medication added to patient profile");
+        setNewMedication("");
+      } else {
+        toast.error("Failed to add medication");
+      }
+    } catch (e) {
+      toast.error("Network Error adding medication");
+    } finally {
+      setAddingMed(false);
+    }
+  };
+
+  const handleRecordVitals = async () => {
+    if (!newVitalsBp.trim() || !newVitalsHr || !newVitalsTemp) {
+      toast.error("Please fill out BP, HR, and Temp");
+      return;
+    }
+    setRecordingVitals(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`http://localhost:5000/api/patients/${selectedPatient.id}/vitals`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ bp: newVitalsBp, hr: Number(newVitalsHr), temp: Number(newVitalsTemp) })
+      });
+      if (res.ok) {
+        toast.success("Vitals snapshot recorded successfully");
+        setNewVitalsBp("");
+        setNewVitalsHr("");
+        setNewVitalsTemp("");
+        // No need to manually fetchPatients() here as the SSE will trigger it globally on success!
+      } else {
+        toast.error("Failed to record vitals");
+      }
+    } catch (e) {
+      toast.error("Network Error saving vitals");
+    } finally {
+      setRecordingVitals(false);
+    }
+  };
 
   const fetchPatients = async () => {
     try {
@@ -44,13 +105,15 @@ const DoctorDashboard = () => {
             id: p._id,
             name: p.patientName,
             bed: p.bed || 'TBD',
+            ward: p.wardId?.wardName || 'Unassigned',
             age: p.age || 45,
             gender: p.gender || 'M',
             condition: p.primaryCondition || 'N/A',
             admissionDate: p.admissionDate ? p.admissionDate.split('T')[0] : 'N/A',
             status: p.status || 'admitted',
             vitals: p.vitals || { bp: '120/80', hr: 75, temp: '98.6°F' },
-            meds: p.meds || ['Standard Care'],
+            vitalsHistory: p.vitalsHistory || [],
+            meds: (p.medications && p.medications.length > 0) ? p.medications : (p.meds || ['Standard Care']),
             doctor: activeDoctor.name
          }));
          setPatients(mapped);
@@ -68,6 +131,34 @@ const DoctorDashboard = () => {
   useEffect(() => {
     fetchPatients();
   }, [activeDoctor]);
+
+  useEffect(() => {
+    const eventSource = new EventSource("http://localhost:5000/api/events/stream");
+
+    const handleEvent = () => {
+      fetchPatients();
+    };
+
+    eventSource.addEventListener("doctor-assigned", handleEvent);
+    eventSource.addEventListener("patient-admitted", handleEvent);
+    eventSource.addEventListener("patient-discharged", handleEvent);
+
+    return () => {
+      eventSource.removeEventListener("doctor-assigned", handleEvent);
+      eventSource.removeEventListener("patient-admitted", handleEvent);
+      eventSource.removeEventListener("patient-discharged", handleEvent);
+      eventSource.close();
+    };
+  }, [activeDoctor]);
+
+  useEffect(() => {
+    if (selectedPatient) {
+      const updatedMatch = patients.find(p => p.id === selectedPatient.id);
+      if (updatedMatch && JSON.stringify(updatedMatch) !== JSON.stringify(selectedPatient)) {
+        setSelectedPatient(updatedMatch);
+      }
+    }
+  }, [patients]);
 
   const filteredPatients = patients; // Removing frontend doctor filtering as API only returns my patients
 
@@ -259,7 +350,7 @@ const DoctorDashboard = () => {
 
       {/* Complete Chart Review Modal */}
       {selectedPatient && (
-        <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`CLINICAL REVIEW: ${selectedPatient.id}`}>
+        <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="CLINICAL REVIEW">
           <div className="space-y-8">
             <div className="bg-white p-8 rounded-lg border-2 border-gray-200 shadow-sm">
               <div className="flex justify-between items-start mb-2">
@@ -270,7 +361,10 @@ const DoctorDashboard = () => {
                       {selectedPatient.status.replace(/_/g, ' ')}
                   </span>
               </div>
-              <p className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest mt-1">Bed {selectedPatient.bed} • {selectedPatient.age} Y/O {selectedPatient.gender}</p>
+              <div className="flex items-center gap-2 mt-1">
+                 <span className="bg-blue-600 text-white px-2 py-0.5 rounded shadow-sm text-[10px] font-extrabold uppercase tracking-widest text-center">BED {selectedPatient.bed}</span>
+                 <p className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest">{selectedPatient.ward} • {selectedPatient.age} Y/O {selectedPatient.gender}</p>
+              </div>
               
               <div className="grid grid-cols-2 gap-8 mt-8 pt-8 border-t border-gray-100">
                 <div>
@@ -304,22 +398,79 @@ const DoctorDashboard = () => {
                   <p className="text-lg font-bold text-gray-900">{selectedPatient.admissionDate}</p>
                 </div>
                 <div className="col-span-2 bg-gray-50/50 p-5 rounded border-2 border-dashed border-gray-200 mt-2">
-                  <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-widest mb-3">Latest Vitals Summary</p>
-                  <div className="flex gap-10 text-xs font-extrabold text-gray-400 tracking-widest uppercase">
+                  <div className="flex justify-between items-end mb-4">
+                    <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-widest">Vitals History & Timeline</p>
+                  </div>
+                  
+                  {/* Historical Log */}
+                  {selectedPatient.vitalsHistory && selectedPatient.vitalsHistory.length > 0 ? (
+                    <div className="flex flex-col gap-3 mb-6 max-h-40 overflow-y-auto pr-2 custom-scrollbar">
+                       {selectedPatient.vitalsHistory.slice().reverse().map((v, i) => (
+                          <div key={i} className="flex justify-between items-center bg-white p-3 rounded shadow-sm border border-gray-100">
+                             <div className="flex gap-6 text-[10px] font-extrabold text-gray-400 tracking-widest uppercase">
+                                 <p>BP: <span className="text-gray-900 text-sm">{v.bp}</span></p>
+                                 <p>HR: <span className="text-gray-900 text-sm">{v.hr}</span></p>
+                                 <p>TEMP: <span className="text-gray-900 text-sm">{v.temp}</span></p>
+                             </div>
+                             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest">
+                                {new Date(v.recordedAt).toLocaleString([], { dateStyle: 'short', timeStyle: 'short' })}
+                             </p>
+                          </div>
+                       ))}
+                    </div>
+                  ) : (
+                    <div className="flex gap-10 text-xs font-extrabold text-gray-400 tracking-widest uppercase mb-6 bg-white p-4 rounded shadow-sm border border-gray-100">
                       <p>Blood Pressure: <span className="text-gray-900 text-base">{selectedPatient.vitals.bp}</span></p>
                       <p>Heart Rate: <span className="text-gray-900 text-base">{selectedPatient.vitals.hr}</span></p>
                       <p>Temperature: <span className="text-gray-900 text-base">{selectedPatient.vitals.temp}</span></p>
+                    </div>
+                  )}
+
+                  {/* Add New Vitals Inline Form */}
+                  <div className="grid grid-cols-4 gap-3 bg-white p-4 rounded shadow-sm border border-gray-200 items-end">
+                     <div>
+                       <label className="text-[9px] font-extrabold text-gray-400 uppercase tracking-widest block mb-1">Blood Pressure</label>
+                       <input type="text" placeholder="120/80" value={newVitalsBp} onChange={e => setNewVitalsBp(e.target.value)} className="w-full border-2 border-gray-200 rounded px-3 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-gray-900 transition" />
+                     </div>
+                     <div>
+                       <label className="text-[9px] font-extrabold text-gray-400 uppercase tracking-widest block mb-1">Heart Rate</label>
+                       <input type="number" placeholder="75" value={newVitalsHr} onChange={e => setNewVitalsHr(e.target.value)} className="w-full border-2 border-gray-200 rounded px-3 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-gray-900 transition" />
+                     </div>
+                     <div>
+                       <label className="text-[9px] font-extrabold text-gray-400 uppercase tracking-widest block mb-1">Temp (°F/C)</label>
+                       <input type="number" step="0.1" placeholder="98.6" value={newVitalsTemp} onChange={e => setNewVitalsTemp(e.target.value)} className="w-full border-2 border-gray-200 rounded px-3 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-gray-900 transition" />
+                     </div>
+                     <Button onClick={handleRecordVitals} disabled={recordingVitals} className="w-full py-2.5 px-3 text-[10px] font-extrabold tracking-widest uppercase shadow-none bg-blue-900 hover:bg-blue-950 border-none transition-colors disabled:opacity-50 text-white">
+                        {recordingVitals ? "Saving..." : "+ Record"}
+                     </Button>
                   </div>
                 </div>
                 <div className="col-span-2 mt-2">
                   <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-3">Active Medications</p>
-                  <ul className="flex flex-col gap-2">
+                  <ul className="flex flex-col gap-2 mb-4">
                       {selectedPatient.meds.map((m, i) => (
                         <li key={i} className="text-sm font-bold text-gray-800 flex items-center gap-3">
                           <span className="w-1.5 h-1.5 rounded-sm bg-gradient-to-r from-blue-950 to-blue-900" /> {m}
                         </li>
                       ))}
                   </ul>
+                  <div className="flex gap-2">
+                     <input 
+                       type="text" 
+                       placeholder="e.g. Paracetamol 500mg" 
+                       value={newMedication} 
+                       onChange={(e) => setNewMedication(e.target.value)} 
+                       className="flex-1 border-2 border-gray-200 rounded px-3 py-2 text-xs font-bold text-gray-900 focus:outline-none focus:border-gray-900 transition" 
+                       onKeyDown={(e) => { if(e.key === 'Enter') handleAddMedication(); }}
+                     />
+                     <Button 
+                       onClick={handleAddMedication} 
+                       disabled={addingMed} 
+                       className="py-2 px-6 shadow-none text-[10px] uppercase font-extrabold tracking-widest bg-gray-900 text-white hover:bg-black transition-colors border-2 border-gray-900"
+                     >
+                       {addingMed ? "Adding..." : "+ Add"}
+                     </Button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -431,104 +582,116 @@ const DoctorDashboard = () => {
           </div>
 
           <div className="-mx-6 px-4 md:px-6 py-4 max-h-[60vh] overflow-y-auto print:max-h-none print:overflow-visible">
-             <div ref={handoverPrintRef} id="handover-print-area" className="bg-white text-black p-8 md:p-12 w-full mx-auto print:p-8 print:w-full print:bg-white print:text-black min-h-[500px] font-sans">
+             <div ref={handoverPrintRef} id="handover-print-area" className="bg-white text-gray-900 p-8 md:p-14 w-full mx-auto print:p-8 print:w-full print:bg-white min-h-[500px] font-sans">
                  {/* HEADER */}
-                 <div className="flex justify-between items-start border-b-2 border-slate-800 pb-6 mb-8">
+                 <div className="flex justify-between items-start border-b-2 border-gray-900 pb-8 mb-10">
                      <div>
-                         <h1 className="text-3xl font-bold uppercase tracking-wide text-slate-900 m-0">Shift Handover Report</h1>
-                         <h2 className="text-sm text-slate-700 mt-2 font-semibold m-0">WardWatch Hospital Management System</h2>
-                         <p className="text-xs text-slate-500 mt-1 m-0">Ref ID: {handoverData.shareId || 'LOCAL-PRINT'}</p>
+                         <h1 className="text-4xl font-extrabold uppercase tracking-tight text-gray-900 m-0">Shift Handover Note</h1>
+                         <h2 className="text-xs text-gray-500 mt-3 font-extrabold tracking-widest uppercase m-0">WardWatch Clinical System</h2>
+                         <p className="text-[10px] text-gray-400 mt-1 font-bold tracking-widest uppercase m-0">Signature Ref: {handoverData.shareId || 'LOCAL-PRINT'}</p>
                      </div>
                      <div className="text-right">
-                         <p className="text-sm font-bold bg-slate-100 px-3 py-1 inline-block rounded mb-2 border border-slate-300">
+                         <p className="text-xs font-extrabold bg-gray-900 text-white px-4 py-2 inline-block rounded uppercase tracking-widest mb-3">
                              {handoverData.archivedShiftName || "Live Ad-Hoc Report"}
                          </p>
-                         <p className="text-xs font-semibold text-slate-600 block mt-1 m-0">
-                             Generated: {new Date(handoverData.generatedAt).toLocaleString()}
+                         <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-widest block m-0">
+                             Snapshot Logged: <span className="text-gray-900">{new Date(handoverData.generatedAt).toLocaleString()}</span>
                          </p>
-                         <p className="text-xs font-semibold text-slate-600 block mt-1 m-0">
-                             Attending: {activeDoctor.name}
+                         <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-widest block mt-1 m-0">
+                             Attending: <span className="text-gray-900">{activeDoctor.name}</span>
                          </p>
                      </div>
                  </div>
 
                  {/* WARD STATS */}
-                 <div className="mb-8">
-                     <h3 className="text-lg font-bold border-b border-slate-300 pb-2 mb-4 text-slate-900 uppercase tracking-wider">Ward Status Overview</h3>
-                     <div className="flex border border-slate-300 rounded overflow-hidden flex-row">
-                         <div className="flex-1 p-4 border-r border-slate-300 bg-slate-50 text-center">
-                             <p className="text-xs font-bold text-slate-500 uppercase m-0">Occupancy</p>
-                             <p className="text-2xl font-black text-slate-900 my-1">{handoverData.stats.occupiedBeds} / {handoverData.stats.totalBeds}</p>
-                             <p className="text-[10px] text-slate-500 m-0">Beds Occupied</p>
+                 <div className="mb-10">
+                     <h3 className="text-sm font-extrabold border-b border-gray-200 pb-3 mb-5 text-gray-900 uppercase tracking-widest">Active Ward Operational Capacity</h3>
+                     <div className="flex border border-gray-200 rounded overflow-hidden">
+                         <div className="flex-1 p-5 border-r border-gray-200 bg-gray-50 text-center">
+                             <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-widest m-0">Census</p>
+                             <p className="text-3xl font-black text-gray-900 mt-2 mb-1 tracking-tighter">{handoverData.stats?.occupiedBeds || 0} / {handoverData.stats?.totalBeds || 0}</p>
+                             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest m-0">Occupied Seats</p>
                          </div>
-                         <div className="flex-1 p-4 border-r border-slate-300 text-center bg-white">
-                            <p className="text-xs font-bold text-red-600 uppercase m-0">Critical Alerts</p>
-                            <p className="text-2xl font-black text-red-600 my-1">{handoverData.stats.criticalEscalations}</p>
-                            <p className="text-[10px] text-slate-500 m-0">Actively Triggered</p>
+                         <div className="flex-1 p-5 border-r border-gray-200 text-center bg-white">
+                            <p className="text-[10px] font-extrabold text-red-600 uppercase tracking-widest m-0">Critical</p>
+                            <p className="text-3xl font-black text-red-600 mt-2 mb-1 tracking-tighter">{handoverData.stats?.criticalEscalations || 0}</p>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest m-0">Active Hazards</p>
                          </div>
-                         <div className="flex-1 p-4 border-r border-slate-300 text-center bg-slate-50">
-                            <p className="text-xs font-bold text-orange-600 uppercase m-0">Pending Adms</p>
-                            <p className="text-2xl font-black text-orange-600 my-1">{handoverData.stats.pendingAdmissions}</p>
-                            <p className="text-[10px] text-slate-500 m-0">Awaiting Bed Assignment</p>
+                         <div className="flex-1 p-5 border-r border-gray-200 text-center bg-gray-50">
+                            <p className="text-[10px] font-extrabold text-orange-600 uppercase tracking-widest m-0">Admitting</p>
+                            <p className="text-3xl font-black text-orange-600 mt-2 mb-1 tracking-tighter">{handoverData.stats?.pendingAdmissions || 0}</p>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest m-0">Queue Backlog</p>
                          </div>
-                         <div className="flex-1 p-4 text-center bg-white">
-                            <p className="text-xs font-bold text-blue-600 uppercase m-0">Discharges</p>
-                            <p className="text-2xl font-black text-blue-600 my-1">{handoverData.stats.pendingDischarges}</p>
-                            <p className="text-[10px] text-slate-500 m-0">Expected to Leave</p>
+                         <div className="flex-1 p-5 text-center bg-white">
+                            <p className="text-[10px] font-extrabold text-blue-600 uppercase tracking-widest m-0">Discharges</p>
+                            <p className="text-3xl font-black text-blue-600 mt-2 mb-1 tracking-tighter">{handoverData.stats?.pendingDischarges || 0}</p>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest m-0">Expected Release</p>
                          </div>
                      </div>
                  </div>
 
                  {/* STAFF ROSTER */}
-                 <div className="mb-8 page-break-inside-avoid">
-                     <h3 className="text-lg font-bold border-b border-slate-300 pb-2 mb-4 text-slate-900 uppercase tracking-wider">Staff on Duty</h3>
-                     <div className="grid grid-cols-2 gap-6 print:grid-cols-2">
-                        <div className="border border-slate-200 p-4 rounded bg-slate-50 text-slate-900">
-                            <p className="text-xs font-bold text-slate-900 uppercase mb-3 pb-2 border-b border-slate-200">Physicians ({handoverData.staff?.doctors?.length || 0})</p>
-                            {handoverData.staff?.doctors?.length > 0 ? (
-                               <ul className="text-sm space-y-2 m-0 p-0 list-none">
-                                  {handoverData.staff.doctors.map((doc, i) => (
-                                     <li key={`doc-${i}`} className="m-0">• Dr. {doc.firstName} {doc.lastName} <span className="text-xs text-slate-600 italic block ml-3">{doc.specialty || 'General'}</span></li>
-                                  ))}
-                               </ul>
-                            ) : <p className="text-xs text-slate-500 italic m-0">No assigned doctors.</p>}
+                 <div className="mb-10 page-break-inside-avoid">
+                     <h3 className="text-sm font-extrabold border-b border-gray-200 pb-3 mb-5 text-gray-900 uppercase tracking-widest">On-Duty Medical Personnel</h3>
+                     <div className="grid grid-cols-2 gap-8 print:grid-cols-2">
+                        <div className="border border-gray-200 rounded bg-gray-50 overflow-hidden">
+                            <div className="bg-gray-100 px-5 py-3 border-b border-gray-200">
+                               <p className="text-[10px] font-extrabold text-gray-900 uppercase tracking-widest m-0">Attending Physicians ({handoverData.staff?.doctors?.length || 0})</p>
+                            </div>
+                            <div className="p-5">
+                                {handoverData.staff?.doctors?.length > 0 ? (
+                                   <ul className="space-y-3 m-0 p-0 list-none">
+                                      {handoverData.staff.doctors.map((doc, i) => (
+                                         <li key={`doc-${i}`} className="text-sm font-bold text-gray-900 m-0 leading-tight">
+                                            Dr. {doc.firstName} {doc.lastName} <span className="text-[10px] text-gray-500 block mt-1 uppercase tracking-widest">{doc.specialty || 'General'}</span>
+                                         </li>
+                                      ))}
+                                   </ul>
+                                ) : <p className="text-xs font-bold text-gray-400 uppercase tracking-widest m-0">No assigned doctors.</p>}
+                            </div>
                         </div>
-                        <div className="border border-slate-200 p-4 rounded bg-slate-50 text-slate-900">
-                            <p className="text-xs font-bold text-slate-900 uppercase mb-3 pb-2 border-b border-slate-200">Nursing Staff ({handoverData.staff?.nurses?.length || 0})</p>
-                            {handoverData.staff?.nurses?.length > 0 ? (
-                               <ul className="text-sm space-y-2 m-0 p-0 list-none">
-                                  {handoverData.staff.nurses.map((nurse, i) => (
-                                     <li key={`nurse-${i}`} className="m-0">• {nurse.firstName} {nurse.lastName} <span className="text-xs text-slate-600 italic block ml-3">{nurse.assignedBeds?.length ? `Assigned to ${nurse.assignedBeds.length} beds` : 'Roving Support'}</span></li>
-                                  ))}
-                               </ul>
-                            ) : <p className="text-xs text-slate-500 italic m-0">No assigned nurses.</p>}
+                        <div className="border border-gray-200 rounded bg-gray-50 overflow-hidden">
+                            <div className="bg-gray-100 px-5 py-3 border-b border-gray-200">
+                               <p className="text-[10px] font-extrabold text-gray-900 uppercase tracking-widest m-0">Nursing Staff ({handoverData.staff?.nurses?.length || 0})</p>
+                            </div>
+                            <div className="p-5">
+                                {handoverData.staff?.nurses?.length > 0 ? (
+                                   <ul className="space-y-3 m-0 p-0 list-none">
+                                      {handoverData.staff.nurses.map((nurse, i) => (
+                                         <li key={`nurse-${i}`} className="text-sm font-bold text-gray-900 m-0 leading-tight">
+                                            {nurse.firstName} {nurse.lastName} <span className="text-[10px] text-gray-500 block mt-1 uppercase tracking-widest">{nurse.assignedBeds?.length ? `Assigned Coverage: ${nurse.assignedBeds.length} beds` : 'Roving Support Float'}</span>
+                                         </li>
+                                      ))}
+                                   </ul>
+                                ) : <p className="text-xs font-bold text-gray-400 uppercase tracking-widest m-0">No assigned nurses.</p>}
+                            </div>
                         </div>
                      </div>
                  </div>
 
                  {/* CRITICAL ALERTS */}
                  {(handoverData.escalations?.critical?.length > 0 || handoverData.escalations?.warnings?.length > 0) && (
-                     <div className="mb-8 page-break-inside-avoid">
-                         <h3 className="text-lg font-bold border-b border-slate-300 pb-2 mb-4 text-red-700 uppercase tracking-wider">Critical Escalations & Alerts</h3>
-                         <div className="space-y-3">
-                            {handoverData.escalations.critical.map((e, i) => (
-                                <div key={`crit-${i}`} className="border-l-4 border-red-600 bg-red-50 p-3 flex justify-between items-start">
+                     <div className="mb-10 page-break-inside-avoid">
+                         <h3 className="text-sm font-extrabold border-b border-gray-200 pb-3 mb-5 text-red-700 uppercase tracking-widest">Shift Anomalies & Operational Escalations</h3>
+                         <div className="space-y-4">
+                            {handoverData.escalations?.critical?.map((e, i) => (
+                                <div key={`crit-${i}`} className="border-l-4 border-red-600 bg-red-50 p-5 flex justify-between items-start shadow-sm">
                                     <div>
-                                        <span className="inline-block text-xs font-bold text-red-800 uppercase bg-red-200 px-2 py-0.5 rounded mr-2 mb-1">{e.type.replace(/-/g, ' ')}</span>
-                                        <span className="text-sm font-semibold text-slate-900">{e.description || "System flagged an actionable escalation."}</span>
-                                        <p className="text-xs text-slate-700 mt-1 m-0">Location: {(e.wardId && e.wardId.wardName) ? e.wardId.wardName : "Unknown Ward"} — Bed {(e.relatedBedId && e.relatedBedId.bedNumber) ? e.relatedBedId.bedNumber : "N/A"}</p>
+                                        <span className="inline-block text-[9px] font-extrabold text-red-900 uppercase tracking-widest bg-red-200 px-2 py-1 rounded-sm mr-2 mb-2">{e.type.replace(/-/g, ' ')}</span>
+                                        <span className="text-sm font-bold text-gray-900 leading-snug block">{e.description || "System flagged an actionable escalation."}</span>
+                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2 m-0">Location Anchor: {(e.wardId && e.wardId.wardName) ? e.wardId.wardName : "Unknown"} — Bed {(e.relatedBedId && e.relatedBedId.bedNumber) ? e.relatedBedId.bedNumber : "N/A"}</p>
                                     </div>
-                                    <span className="text-[10px] font-bold text-slate-600 whitespace-nowrap">{new Date(e.createdAt).toLocaleTimeString()}</span>
+                                    <span className="text-[10px] font-extrabold text-gray-500 tracking-widest whitespace-nowrap">{new Date(e.createdAt).toLocaleTimeString()}</span>
                                 </div>
                             ))}
-                            {handoverData.escalations.warnings.map((e, i) => (
-                                <div key={`warn-${i}`} className="border-l-4 border-orange-500 bg-orange-50 p-3 flex justify-between items-start">
+                            {handoverData.escalations?.warnings?.map((e, i) => (
+                                <div key={`warn-${i}`} className="border-l-4 border-orange-500 bg-orange-50 p-5 flex justify-between items-start shadow-sm">
                                     <div>
-                                        <span className="inline-block text-xs font-bold text-orange-800 uppercase bg-orange-200 px-2 py-0.5 rounded mr-2 mb-1">{e.type.replace(/-/g, ' ')}</span>
-                                        <span className="text-sm font-semibold text-slate-900">{e.description || "System flagged a workflow delay."}</span>
-                                        <p className="text-xs text-slate-700 mt-1 m-0">Location: {(e.wardId && e.wardId.wardName) ? e.wardId.wardName : "Unknown Ward"} — Bed {(e.relatedBedId && e.relatedBedId.bedNumber) ? e.relatedBedId.bedNumber : "N/A"}</p>
+                                        <span className="inline-block text-[9px] font-extrabold text-orange-900 uppercase tracking-widest bg-orange-200 px-2 py-1 rounded-sm mr-2 mb-2">{e.type.replace(/-/g, ' ')}</span>
+                                        <span className="text-sm font-bold text-gray-900 leading-snug block">{e.description || "System flagged a workflow delay."}</span>
+                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2 m-0">Location Anchor: {(e.wardId && e.wardId.wardName) ? e.wardId.wardName : "Unknown"} — Bed {(e.relatedBedId && e.relatedBedId.bedNumber) ? e.relatedBedId.bedNumber : "N/A"}</p>
                                     </div>
-                                    <span className="text-[10px] font-bold text-slate-600 whitespace-nowrap">{new Date(e.createdAt).toLocaleTimeString()}</span>
+                                    <span className="text-[10px] font-extrabold text-gray-500 tracking-widest whitespace-nowrap">{new Date(e.createdAt).toLocaleTimeString()}</span>
                                 </div>
                             ))}
                          </div>
@@ -536,80 +699,83 @@ const DoctorDashboard = () => {
                  )}
 
                  {/* ACTIVE PATIENT ROSTER */}
-                 <div className="mb-8">
-                     <h3 className="text-lg font-bold border-b border-slate-300 pb-2 mb-4 text-slate-900 uppercase tracking-wider">Clinical Roster ({handoverData.activePatients?.length || 0})</h3>
+                 <div className="mb-10">
+                     <h3 className="text-sm font-extrabold border-b border-gray-200 pb-3 mb-5 text-gray-900 uppercase tracking-widest">Admitted Patient Demographics ({handoverData.activePatients?.length || 0})</h3>
                      {handoverData.activePatients && handoverData.activePatients.length > 0 ? (
-                         <table className="w-full text-left border-collapse border border-slate-300 print:text-sm text-slate-900">
-                             <thead className="bg-slate-100">
+                         <table className="w-full text-left border-collapse border border-gray-200 print:text-sm text-gray-900 shadow-sm">
+                             <thead className="bg-gray-100">
                                  <tr>
-                                     <th className="border border-slate-300 p-3 text-xs font-bold uppercase text-slate-800 w-1/4">Patient Details</th>
-                                     <th className="border border-slate-300 p-3 text-xs font-bold uppercase text-slate-800 w-1/4">Location</th>
-                                     <th className="border border-slate-300 p-3 text-xs font-bold uppercase text-slate-800 w-1/2">Primary Diagnosis & Notes</th>
+                                     <th className="border-b border-gray-200 p-4 text-[10px] font-extrabold uppercase tracking-widest text-gray-500 w-1/4">Reference Identity</th>
+                                     <th className="border-b border-gray-200 p-4 text-[10px] font-extrabold uppercase tracking-widest text-gray-500 w-1/4">Location Vector</th>
+                                     <th className="border-b border-gray-200 p-4 text-[10px] font-extrabold uppercase tracking-widest text-gray-500 w-1/2">Diagnostic Remarks</th>
                                  </tr>
                              </thead>
-                             <tbody>
+                             <tbody className="divide-y divide-gray-100">
                                  {handoverData.activePatients.map((p, i) => (
-                                     <tr key={`p-${i}`} className="hover:bg-slate-50 align-top">
-                                         <td className="border border-slate-300 p-3">
-                                             <p className="font-bold text-sm m-0">{p.patientName}</p>
-                                             <p className="text-[10px] text-slate-600 m-0 mt-1 uppercase font-semibold">Admitted: {new Date(p.admissionDate).toLocaleDateString()}</p>
+                                     <tr key={`p-${i}`} className="hover:bg-gray-50 align-top transition">
+                                         <td className="p-4">
+                                             <p className="font-extrabold text-sm text-gray-900 m-0">{p.patientName}</p>
+                                             <p className="text-[9px] text-gray-400 m-0 mt-1 uppercase tracking-widest font-extrabold">Logged: {new Date(p.admissionDate).toLocaleDateString()}</p>
                                          </td>
-                                         <td className="border border-slate-300 p-3">
-                                             <p className="text-sm font-semibold m-0">{p.wardName}</p>
-                                             <p className="text-xs text-slate-700 m-0 mt-0.5 uppercase font-semibold">Bed {p.bedNumber}</p>
+                                         <td className="p-4">
+                                             <p className="text-xs font-bold text-gray-900 uppercase tracking-widest m-0">{p.wardName}</p>
+                                             <p className="text-[10px] text-gray-500 m-0 mt-1 font-extrabold tracking-widest">BED MAP: {p.bedNumber}</p>
                                          </td>
-                                         <td className="border border-slate-300 p-3 whitespace-pre-wrap">
-                                             <span className="text-sm text-slate-800 leading-snug block">{p.condition}</span>
+                                         <td className="p-4 pr-6 whitespace-pre-wrap">
+                                             <span className="text-xs font-bold text-gray-700 leading-relaxed block">{p.condition}</span>
                                          </td>
                                      </tr>
                                  ))}
                              </tbody>
                          </table>
-                     ) : <p className="text-sm text-slate-500 italic">No active patients currently logged.</p>}
+                     ) : <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest m-0">No active patients actively mapped in system.</p>}
                  </div>
 
                  {/* ADMISSIONS & DISCHARGES */}
-                 <div className="grid grid-cols-2 gap-8 print:grid-cols-2 mb-8 page-break-inside-avoid">
+                 <div className="grid grid-cols-2 gap-8 print:grid-cols-2 mb-10 page-break-inside-avoid">
                      {/* INCOMING */}
                      <div>
-                         <h3 className="text-md font-bold border-b border-slate-300 pb-2 mb-3 text-slate-900 uppercase tracking-wider">Incoming Admissions ({handoverData.admissions?.length || 0})</h3>
+                         <h3 className="text-sm font-extrabold border-b border-gray-200 pb-3 mb-5 text-gray-900 uppercase tracking-widest">Inbound Queue ({handoverData.admissions?.length || 0})</h3>
                          {handoverData.admissions && handoverData.admissions.length > 0 ? (
-                             <ul className="border border-slate-300 rounded divide-y divide-slate-200 m-0 p-0 list-none bg-white">
+                             <ul className="border border-gray-200 rounded divide-y divide-gray-100 m-0 p-0 list-none bg-white shadow-sm">
                                  {handoverData.admissions.map((adm, i) => (
-                                     <li key={`adm-${i}`} className="p-3 text-sm flex justify-between items-center bg-white">
+                                     <li key={`adm-${i}`} className="p-4 text-sm flex justify-between items-center bg-white hover:bg-gray-50 transition">
                                          <div>
-                                             <span className="font-bold block text-slate-900 m-0">{adm.patientId?.patientName || "Unknown Patient"}</span>
-                                             <span className="text-xs text-slate-600 block m-0 mt-0.5">{adm.patientId?.primaryCondition || "Undiagnosed"}</span>
+                                             <span className="font-extrabold block text-gray-900 uppercase tracking-wide m-0 text-xs">{adm.patientId?.patientName || "Unknown"}</span>
+                                             <span className="text-[10px] font-bold block text-gray-500 m-0 mt-1 uppercase tracking-wider">{adm.patientId?.primaryCondition || "Evaluation Pend"}</span>
                                          </div>
-                                         <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded border whitespace-nowrap ${adm.priority === 'emergency' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>{adm.priority}</span>
+                                         <span className={`text-[9px] font-extrabold uppercase tracking-widest px-2 py-1 rounded shadow-sm whitespace-nowrap ${adm.priority === 'emergency' ? 'bg-red-600 text-white border border-red-700' : 'bg-gray-200 text-gray-800'}`}>{adm.priority}</span>
                                      </li>
                                  ))}
                              </ul>
-                         ) : <p className="text-sm text-slate-500 italic m-0">No pending admissions.</p>}
+                         ) : <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest m-0">No active pipeline.</p>}
                      </div>
 
                      {/* DISCHARGES */}
                      <div>
-                         <h3 className="text-md font-bold border-b border-slate-300 pb-2 mb-3 text-slate-900 uppercase tracking-wider">Expected Discharges ({handoverData.discharges?.length || 0})</h3>
+                         <h3 className="text-sm font-extrabold border-b border-gray-200 pb-3 mb-5 text-gray-900 uppercase tracking-widest">Expected Release ({handoverData.discharges?.length || 0})</h3>
                          {handoverData.discharges && handoverData.discharges.length > 0 ? (
-                             <ul className="border border-slate-300 rounded divide-y divide-slate-200 m-0 p-0 list-none bg-white">
+                             <ul className="border border-gray-200 rounded divide-y divide-gray-100 m-0 p-0 list-none bg-white shadow-sm">
                                  {handoverData.discharges.map((d, i) => (
-                                     <li key={`dch-${i}`} className="p-3 text-sm flex justify-between items-center bg-white">
-                                         <span className="font-bold text-slate-900 m-0">{d.patientId?.patientName}</span>
-                                         <span className="text-xs text-green-800 bg-green-50 border border-green-200 px-2 py-1 rounded whitespace-nowrap font-semibold">
-                                             {d.expectedDischargeDate ? new Date(d.expectedDischargeDate).toLocaleDateString() : 'Awaiting Clearance'}
+                                     <li key={`dch-${i}`} className="p-4 text-sm flex justify-between items-center bg-white hover:bg-gray-50 transition">
+                                         <span className="font-extrabold text-gray-900 uppercase tracking-wide m-0 text-xs">{d.patientId?.patientName}</span>
+                                         <span className="text-[9px] font-extrabold text-blue-900 bg-blue-100 border border-blue-200 px-2 py-1 rounded shadow-sm whitespace-nowrap uppercase tracking-widest">
+                                             {d.expectedDischargeDate ? new Date(d.expectedDischargeDate).toLocaleDateString() : 'Awaiting Orders'}
                                          </span>
                                      </li>
                                  ))}
                              </ul>
-                         ) : <p className="text-sm text-slate-500 italic m-0">No expected discharges.</p>}
+                         ) : <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest m-0">No active departure queue.</p>}
                      </div>
                  </div>
 
                  {/* FOOTER */}
-                 <div className="text-center pt-8 border-t border-slate-800 text-xs text-slate-500 font-bold tracking-widest uppercase page-break-before-auto">
-                     — END OF HANDOVER REPORT —
-                     <p className="mt-2 text-[10px] font-normal tracking-normal text-slate-400 m-0">WardWatch Hospital System • Data Integrity Validated</p>
+                 <div className="text-center pt-10 border-t border-gray-200 text-[10px] text-gray-400 font-extrabold tracking-widest uppercase page-break-before-auto">
+                     <p className="m-0 py-2">/// SECURE END OF HANDOVER TRANSMISSION ///</p>
+                     <p className="mt-2 text-[9px] font-bold tracking-widest text-gray-300 m-0 uppercase flex items-center justify-center gap-2">
+                        <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block"></span>
+                        Verified By WardWatch System
+                     </p>
                  </div>
              </div>
           </div>

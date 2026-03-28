@@ -35,7 +35,7 @@ app.use("/api/capacity", require("./src/routes/capacityRoutes"));
 app.use("/api/staff", require("./src/routes/staffRoutes"));
 app.use("/api/handover", require("./src/routes/handoverRoutes"));
 app.use("/api/patients", require("./src/routes/patientRoutes"));
-
+app.use("/api/analytics", require("./src/routes/analyticsRoutes"));
 
 setInterval(async () => {
   const wards = await Ward.find();

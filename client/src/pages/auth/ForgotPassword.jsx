@@ -7,7 +7,6 @@ export default function ForgotPassword() {
     const navigate = useNavigate();
     const [email, setEmail] = useState("");
     const [isLoading, setIsLoading] = useState(false);
-    const [sent, setSent] = useState(false);
 
     const handleSubmit = async () => {
         if (!email) {
@@ -32,8 +31,8 @@ export default function ForgotPassword() {
                 throw new Error(data.message || "Failed to send reset email");
             }
 
-            setSent(true);
-            toast.success("Password reset email sent!");
+            toast.success("OTP sent to your email!");
+            navigate('/resetpassword', { state: { email } });
         } catch (err) {
             toast.error(err.message || "Something went wrong.");
         } finally {
@@ -84,19 +83,6 @@ export default function ForgotPassword() {
                         </p>
                     </div>
 
-                    {sent ? (
-                        <div className="text-center space-y-6">
-                            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg text-emerald-900 text-sm font-bold">
-                                Reset instructions have been sent to your email. Please check your inbox.
-                            </div>
-                            <button
-                                onClick={() => navigate('/')}
-                                className="w-full bg-gray-900 text-white py-4 rounded font-extrabold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 hover:bg-black transition shadow-none"
-                            >
-                                Return to Login
-                            </button>
-                        </div>
-                    ) : (
                         <div className="space-y-6">
                             {/* Email */}
                             <div>
@@ -135,7 +121,6 @@ export default function ForgotPassword() {
                                 )}
                             </button>
                         </div>
-                    )}
                 </div>
             </div>
         </div>

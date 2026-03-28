@@ -25,14 +25,10 @@ exports.getCapacityForecast = async (wardId, hoursAhead) => {
     },
   });
 
-  // 3️⃣ Expected admissions within time window
+  // 3️⃣ Expected admissions (all pending are assumed immediate queue load)
   const expectedAdmissions = await Admission.countDocuments({
     wardId,
     status: "pending",
-    createdAt: {
-      $gte: now,
-      $lte: futureTime,
-    },
   });
 
   // 4️⃣ Forecast calculation

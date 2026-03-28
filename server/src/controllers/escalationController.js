@@ -1,5 +1,17 @@
 const Escalation = require("../models/Escalation");
 
+// Get escalations across ALL wards
+exports.getAllEscalations = async (req, res) => {
+  const escalations = await Escalation.find({
+    resolved: false,
+  })
+    .populate("wardId", "wardName")
+    .populate("relatedBedId", "bedNumber")
+    .populate("relatedPatientId", "patientName");
+
+  res.json(escalations);
+};
+
 // Get escalations for ward
 exports.getWardEscalations = async (req, res) => {
   const escalations = await Escalation.find({
@@ -7,7 +19,8 @@ exports.getWardEscalations = async (req, res) => {
     resolved: false,
   })
     .populate("wardId", "wardName")
-    .populate("relatedBedId", "bedNumber");
+    .populate("relatedBedId", "bedNumber")
+    .populate("relatedPatientId", "patientName");
 
   res.json(escalations);
 };

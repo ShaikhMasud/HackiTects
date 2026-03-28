@@ -72,6 +72,14 @@ const StaffDashboard = () => {
        return;
     }
 
+    const finalWardId = admissionForm.wardId || activeWard;
+    const finalDoctorId = admissionForm.doctorId || (doctorsList.length > 0 ? doctorsList[0]._id : "");
+
+    if (!finalWardId) {
+       toast.error("Please select a valid ward.");
+       return;
+    }
+
     try {
       // Step 1: Create the patient implicitly via admission or wait, backend admissionController handles Patient creation if sent? Look at backend logic. 
       // Instead of guessing, since we might need Patient ID, let's just send the admission request if the backend endpoint supports direct creation without patientId. 
@@ -87,9 +95,9 @@ const StaffDashboard = () => {
             hr: admissionForm.hr,
             temp: admissionForm.temp,
             condition: admissionForm.condition,
-            wardId: admissionForm.wardId,
+            wardId: finalWardId,
             priority: admissionForm.priority.toLowerCase(),
-            doctorId: admissionForm.doctorId,
+            doctorId: finalDoctorId,
             bedId: admissionForm.bedId || undefined
          })
       });
@@ -109,6 +117,7 @@ const StaffDashboard = () => {
   const [discharges, setDischarges] = useState([]);
   const [admissions, setAdmissions] = useState([]);
   const [escalations, setEscalations] = useState([]);
+  const [capacity, setCapacity] = useState(null);
 
   const fetchDashboardData = async () => {
     try {
@@ -134,10 +143,13 @@ const StaffDashboard = () => {
          }
       }
       
-      let currentWardId = activeWard;
+      let currentWardId = activeWard || localStorage.getItem("wardWatchActiveWard");
       if (!currentWardId && wardsData.length > 0) {
         currentWardId = wardsData[0]._id;
+      }
+      if (currentWardId) {
         setActiveWard(currentWardId);
+        localStorage.setItem("wardWatchActiveWard", currentWardId);
       }
       
       if (!currentWardId) {
@@ -145,11 +157,12 @@ const StaffDashboard = () => {
         return;
       }
       
-      const [bedsRes, discRes, admRes, escRes] = await Promise.all([
+      const [bedsRes, discRes, admRes, escRes, capRes] = await Promise.all([
          fetch(`http://localhost:5000/api/wards/${currentWardId}`),
          fetch(`http://localhost:5000/api/discharges/ward/${currentWardId}`),
          fetch(`http://localhost:5000/api/admissions/ward/${currentWardId}`),
-         fetch(`http://localhost:5000/api/escalations/ward/${currentWardId}`)
+         fetch(`http://localhost:5000/api/escalations/ward/${currentWardId}`),
+         fetch(`http://localhost:5000/api/capacity/${currentWardId}/forecast`)
       ]);
       
       if(bedsRes.ok) {
@@ -164,7 +177,8 @@ const StaffDashboard = () => {
                 name: b.occupantPatientId.patientName,
                 condition: b.occupantPatientId.primaryCondition || 'Standard Admission',
                 doctor: 'Assigned Provider',
-                admitDate: b.occupantPatientId.admissionDate ? b.occupantPatientId.admissionDate.split('T')[0] : 'N/A'
+                admitDate: b.occupantPatientId.admissionDate ? b.occupantPatientId.admissionDate.split('T')[0] : 'N/A',
+                los: b.occupantPatientId.admissionDate ? Math.floor((new Date() - new Date(b.occupantPatientId.admissionDate)) / (1000 * 60 * 60 * 24)) : 0
             } : null,
             since: b.cleaningStartTime ? 'Cleaning' : null
          }));
@@ -173,7 +187,14 @@ const StaffDashboard = () => {
       
       if(discRes.ok) {
          const d = await discRes.json();
-         setDischarges(d.map(x => ({ id: x._id, patientName: x.patientId?.patientName || 'Unknown', expectedTime: x.scheduledDischargeTime, status: x.status, bedId: x.bedId })));
+         setDischarges(d.map(x => ({ 
+             id: x._id, 
+             patientName: x.patientId?.patientName || 'Unknown', 
+             expectedTime: x.scheduledDischargeTime, 
+             status: x.status, 
+             bedId: x.bedId?._id || x.bedId,
+             bedNumber: x.bedId?.bedNumber || '-'
+         })));
       } else { setDischarges([]); }
       
       if(admRes.ok) {
@@ -182,8 +203,22 @@ const StaffDashboard = () => {
       } else { setAdmissions([]); }
       
       if(escRes.ok) {
-         setEscalations(await escRes.json());
+         const escData = await escRes.json();
+         setEscalations(escData.map(e => {
+             const bedPrefix = e.relatedBedId?.bedNumber ? `Bed ${e.relatedBedId.bedNumber} - ` : '';
+             const patientPrefix = e.relatedPatientId?.patientName ? `[${e.relatedPatientId.patientName}] ` : '';
+             return {
+                 id: e._id,
+                 type: e.severity ? e.severity.toLowerCase() : 'warning',
+                 message: `${bedPrefix}${patientPrefix}${e.description}`,
+                 time: e.createdAt || new Date().toISOString()
+             };
+         }));
       } else { setEscalations([]); }
+
+      if (capRes.ok) {
+         setCapacity(await capRes.json());
+      } else { setCapacity(null); }
 
     } catch (error) {
       console.error("Failed to fetch dashboard data", error);
@@ -195,6 +230,31 @@ const StaffDashboard = () => {
 
   useEffect(() => {
     fetchDashboardData();
+  }, [activeWard]);
+
+  useEffect(() => {
+    const eventSource = new EventSource("http://localhost:5000/api/events/stream");
+
+    const handleEvent = () => {
+      fetchDashboardData();
+    };
+
+    eventSource.addEventListener("bed-updated", handleEvent);
+    eventSource.addEventListener("patient-admitted", handleEvent);
+    eventSource.addEventListener("patient-discharged", handleEvent);
+    eventSource.addEventListener("discharge-scheduled", handleEvent);
+    eventSource.addEventListener("escalation-created", handleEvent);
+    eventSource.addEventListener("escalation-resolved", handleEvent);
+
+    return () => {
+      eventSource.removeEventListener("bed-updated", handleEvent);
+      eventSource.removeEventListener("patient-admitted", handleEvent);
+      eventSource.removeEventListener("patient-discharged", handleEvent);
+      eventSource.removeEventListener("discharge-scheduled", handleEvent);
+      eventSource.removeEventListener("escalation-created", handleEvent);
+      eventSource.removeEventListener("escalation-resolved", handleEvent);
+      eventSource.close();
+    };
   }, [activeWard]);
 
   const currentWardBeds = beds.filter(b => b.ward === activeWard);
@@ -209,32 +269,21 @@ const StaffDashboard = () => {
   const dischargesNext4h = currentDischarges.filter(d => d.status === 'pending' && new Date(d.expectedTime) <= new Date(Date.now() + 4 * 3600000)).length;
   const dischargesNext8h = currentDischarges.filter(d => d.status === 'pending' && new Date(d.expectedTime) <= new Date(Date.now() + 8 * 3600000)).length;
 
-  const activeOccupancy = Math.round((occupiedCount / (currentWardBeds.length || 1)) * 100) || 0;
-  const occupancy4h = Math.round(((occupiedCount - dischargesNext4h + pendingAdmissionsTargettingWard) / (currentWardBeds.length || 1)) * 100) || 0;
-  const occupancy8h = Math.round(((occupiedCount - dischargesNext8h + pendingAdmissionsTargettingWard) / (currentWardBeds.length || 1)) * 100) || 0;
+  const activeOccupancy = capacity ? Math.round((capacity.current / (capacity.forecast_4hr?.totalBeds || 1)) * 100) : 0;
+  const occupancy4h = capacity?.forecast_4hr ? Math.round(parseFloat(capacity.forecast_4hr.occupancyRate)) : 0;
+  const occupancy8h = capacity?.forecast_8hr ? Math.round(parseFloat(capacity.forecast_8hr.occupancyRate)) : 0;
+  
+  const currentTotal = capacity?.forecast_4hr?.totalBeds || currentWardBeds.length;
 
   const now = new Date();
   const time4h = new Date(now.getTime() + 4 * 60 * 60 * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   const time8h = new Date(now.getTime() + 8 * 60 * 60 * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
 
   const statsData = [
-    { label: "Current Occupancy", value: `${activeOccupancy}%`, subtext: `${occupiedCount} of ${currentWardBeds.length} Beds` },
+    { label: "Current Occupancy", value: `${Math.min(Math.max(activeOccupancy, 0), 100)}%`, subtext: `${capacity?.current || occupiedCount} of ${currentTotal} Beds` },
     { label: "4-Hour Forecast", value: `${Math.min(Math.max(occupancy4h, 0), 100)}%`, subtext: `By ${time4h}` },
     { label: "8-Hour Forecast", value: `${Math.min(Math.max(occupancy8h, 0), 100)}%`, subtext: `By ${time8h}` },
   ];
-
-  // Dynamic Escalations
-  const dynamicEscalations = [];
-  if (occupancy4h > 90) {
-    dynamicEscalations.push({ id: `cap-${activeWard}`, type: "critical", message: `${activeWard} projected to exceed 90% capacity within 4 hours.`, time: new Date().toISOString() });
-  }
-  currentWardBeds.filter(b => b.status === "cleaning").slice(0, 1).forEach(b => {
-    // Flag the first cleaning bed as an example delay
-    dynamicEscalations.push({ id: `c-${b.id}`, type: "warning", message: `Bed ${b.bedNumber} has been in 'Cleaning' status for over 30 minutes.`, time: new Date(Date.now() - 35 * 60000).toISOString() });
-  });
-  currentDischarges.filter(d => d.status === "pending" && new Date(d.expectedTime).getTime() < (Date.now() - 2 * 3600000)).forEach(d => {
-    dynamicEscalations.push({ id: `d-${d.id}`, type: "critical", message: `Patient ${d.patientName} marked for discharge >2 hours ago and hasn't left.`, time: new Date(d.expectedTime).toISOString() });
-  });
 
   const handleBedClick = (bed) => {
     setSelectedBed(bed);
@@ -257,12 +306,6 @@ const StaffDashboard = () => {
       }
     } catch(e) { console.error(e); }
     setIsModalOpen(false);
-  };
-
-  const handleDischarge = () => {
-     // Expected to call completeDischarge or schedule, but for mock fallback we can manually reset bed
-     updateStatus("cleaning");
-     toast.info(`Bed ${selectedBed.bedNumber} marking for clean.`);
   };
 
   const handleTransfer = async () => {
@@ -325,7 +368,10 @@ const StaffDashboard = () => {
         <div className="flex w-full md:w-auto flex-col md:flex-row gap-4 items-start md:items-center shrink-0">
           <select
             value={activeWard || ""}
-            onChange={(e) => setActiveWard(e.target.value)}
+            onChange={(e) => {
+              setActiveWard(e.target.value);
+              localStorage.setItem("wardWatchActiveWard", e.target.value);
+            }}
             className="w-full md:w-56 pl-4 pr-8 py-3 md:py-3.5 bg-gray-100 border border-gray-200 rounded text-xs font-extrabold text-gray-900 uppercase tracking-widest cursor-pointer transition-colors focus:outline-none focus:ring-0 focus:border-gray-900 hover:bg-gray-200 shadow-sm"
           >
             {wardsList.map(ward => (
@@ -351,7 +397,7 @@ const StaffDashboard = () => {
       </div>
 
       {/* Escalation Flags - Full Width */}
-      <EscalationFlagsAlert escalations={dynamicEscalations.length > 0 ? dynamicEscalations : escalations} />
+      <EscalationFlagsAlert escalations={escalations} />
 
       {/* Main Full-Width Bed Map Component */}
       <div className="w-full bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col shadow-sm">
@@ -407,7 +453,7 @@ const StaffDashboard = () => {
       {/* Bed Settings Modal */}
       {selectedBed && (
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`BED ${selectedBed.bedNumber} SETTINGS`}>
-          <div className="space-y-8">
+          <div className="space-y-4">
             {selectedBed.status === 'occupied' && selectedBed.patient && (
               <div className="bg-white p-5 rounded-lg border-2 border-gray-200">
                 <h4 className="font-extrabold text-2xl text-gray-900 tracking-tight">{selectedBed.patient.name}</h4>
@@ -424,11 +470,6 @@ const StaffDashboard = () => {
                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Admitted</p>
                     <p className="text-sm font-bold text-gray-900">{selectedBed.patient.admitDate}</p>
                   </div>
-                </div>
-                <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end">
-                  <Button onClick={handleDischarge} className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white text-[10px] font-extrabold uppercase tracking-widest shadow-none border-none">
-                     Discharge Patient & Clean Bed
-                  </Button>
                 </div>
               </div>
             )}

@@ -27,7 +27,7 @@ exports.getWardDischarges = async (req, res) => {
   const discharges = await Discharge.find({
     wardId: req.params.wardId,
     status: "pending",
-  }).populate("patientId");
+  }).populate("patientId").populate("bedId", "bedNumber");
 
   res.json(discharges);
 };
@@ -66,6 +66,16 @@ exports.completeDischarge = async (req, res) => {
       status: "discharged",
       dischargeDate: new Date(),
     });
+
+    // Unhook any dangling discharge-delay or los-outlier escalations explicitly
+    const Escalation = require("../models/Escalation");
+    const escalationsToClear = await Escalation.updateMany(
+      { relatedPatientId: discharge.patientId, resolved: false },
+      { resolved: true }
+    );
+    if (escalationsToClear.modifiedCount > 0) {
+      sendEvent("escalation-resolved", { patientId: discharge.patientId });
+    }
 
     // Move bed → cleaning
     const bed = await Bed.findById(discharge.bedId);

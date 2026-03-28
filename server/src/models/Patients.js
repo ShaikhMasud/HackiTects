@@ -10,6 +10,16 @@ const patientSchema = new mongoose.Schema(
       hr: Number,
       temp: Number,
     },
+    vitalsHistory: [
+      {
+        bp: String,
+        hr: Number,
+        temp: Number,
+        recordedAt: { type: Date, default: Date.now },
+        recordedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }
+      }
+    ],
+    medications: [{ type: String }],
     primaryCondition: String,
     conditionAtDischarge: String,
     responsibleDoctorId: {

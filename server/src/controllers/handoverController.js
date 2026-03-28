@@ -39,7 +39,7 @@ const compileHandoverPayload = async (wardId) => {
   }).populate({
     path: "patientId",
     select: "patientName primaryCondition",
-  });
+  }).lean();
   admissions = admissions.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
 
   // 📤 3. Pending Discharges
@@ -49,7 +49,7 @@ const compileHandoverPayload = async (wardId) => {
   }).populate({
     path: "patientId",
     select: "patientName",
-  });
+  }).lean();
 
   // 🚨 4. Active Escalations
   const escalations = await Escalation.find({
@@ -57,14 +57,15 @@ const compileHandoverPayload = async (wardId) => {
     resolved: false,
   })
     .populate({ path: "wardId", select: "wardName" })
-    .populate({ path: "relatedBedId", select: "bedNumber" });
+    .populate({ path: "relatedBedId", select: "bedNumber" })
+    .lean();
 
   // 👩‍⚕️ 5. Staff Assignments
   const nurses = await User.find({ role: "nurse", ...filter }).populate({
     path: "assignedBeds",
     select: "bedNumber status",
-  });
-  const doctors = await User.find({ role: "doctor", ...filter });
+  }).lean();
+  const doctors = await User.find({ role: "doctor", ...filter }).lean();
 
   // 📊 6. Stats
   return {

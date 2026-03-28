@@ -49,6 +49,16 @@ exports.updateBedStatus = async (req, res) => {
     if (status === "available") {
       bed.occupantPatientId = null;
       bed.cleaningStartTime = null;
+
+      // Unhook dangling cleaning escalations explicitly
+      const Escalation = require("../models/Escalation");
+      const escalationsToClear = await Escalation.updateMany(
+        { relatedBedId: bed._id, type: "cleaning-delay", resolved: false },
+        { resolved: true }
+      );
+      if (escalationsToClear.modifiedCount > 0) {
+        sendEvent("escalation-resolved", { type: "cleaning-delay", bedId: bed._id });
+      }
     }
 
     await bed.save(); // ✅ SAVE FIRST

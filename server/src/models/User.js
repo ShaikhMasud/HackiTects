@@ -42,10 +42,10 @@ userSchema.methods.comparePassword = function (password) {
 
 // Generate and hash password token
 userSchema.methods.getResetPasswordToken = function () {
-  // Generate token
-  const resetToken = crypto.randomBytes(20).toString("hex");
+  // Generate 6 digit OTP
+  const resetToken = Math.floor(100000 + Math.random() * 900000).toString();
 
-  // Hash token and set to resetPasswordToken field
+  // Hash OTP and set to resetPasswordToken field
   this.resetPasswordToken = crypto
     .createHash("sha256")
     .update(resetToken)

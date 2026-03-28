@@ -58,17 +58,15 @@ exports.forgotPassword = async (req, res) => {
     const resetToken = user.getResetPasswordToken();
     await user.save({ validateBeforeSave: false });
 
-    // Assuming Vite frontend is on 5173
-    const frontendResetUrl = `http://localhost:5173/resetpassword/${resetToken}`;
-    const message = `You are receiving this email because a password reset was requested. \n\nPlease use the following link to reset your password: \n\n ${frontendResetUrl}`;
+    const message = `You are receiving this email because a password reset was requested. \n\nYour password reset OTP is:\n\n ${resetToken}\n\nThis OTP is valid for 10 minutes.`;
 
     try {
       await sendEmail({
         email: user.email,
-        subject: "WardWatch System Password Reset",
+        subject: "WardWatch System Password Reset OTP",
         message,
       });
-      res.status(200).json({ success: true, message: "Email sent successfully" });
+      res.status(200).json({ success: true, message: "OTP sent successfully to email" });
     } catch (err) {
       console.log("Nodemailer Error:", err);
       user.resetPasswordToken = undefined;
@@ -84,21 +82,28 @@ exports.forgotPassword = async (req, res) => {
 // Reset Password
 exports.resetPassword = async (req, res) => {
   try {
+    const { email, otp, password } = req.body;
+
+    if (!email || !otp) {
+      return res.status(400).json({ message: "Please provide email and OTP" });
+    }
+
     const resetPasswordToken = crypto
       .createHash("sha256")
-      .update(req.params.resettoken)
+      .update(otp)
       .digest("hex");
 
     const user = await User.findOne({
+      email,
       resetPasswordToken,
       resetPasswordExpire: { $gt: Date.now() },
     });
 
     if (!user) {
-      return res.status(400).json({ message: "Invalid token or password reset link has expired" });
+      return res.status(400).json({ message: "Invalid OTP or OTP has expired" });
     }
 
-    if (!req.body.password || req.body.password.length < 6) {
+    if (!password || password.length < 6) {
        return res.status(400).json({ message: "Please provide a valid password of 6+ characters" });
     }
 

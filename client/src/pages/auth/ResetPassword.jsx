@@ -1,19 +1,29 @@
 import { useState } from "react";
 import { toast } from "react-toastify";
-import { Loader2, Lock, ArrowRight, Eye, EyeOff } from "lucide-react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Loader2, Lock, ArrowRight, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { useNavigate, useLocation, Navigate } from "react-router-dom";
 
 export default function ResetPassword() {
     const navigate = useNavigate();
-    const { resetToken } = useParams(); // URL parameter defined in App.jsx
+    const location = useLocation();
+    const email = location.state?.email;
 
+    const [otp, setOtp] = useState("");
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [success, setSuccess] = useState(false);
 
+    if (!email) {
+        return <Navigate to="/forgotpassword" replace />;
+    }
+
     const handleSubmit = async () => {
+        if (!otp || otp.length !== 6) {
+            toast.error("Please enter a valid 6-digit OTP");
+            return;
+        }
         if (!password || password.length < 6) {
             toast.error("Password must be at least 6 characters");
             return;
@@ -26,12 +36,12 @@ export default function ResetPassword() {
         try {
             setIsLoading(true);
 
-            const res = await fetch(`http://localhost:5000/api/auth/resetpassword/${resetToken}`, {
+            const res = await fetch(`http://localhost:5000/api/auth/resetpassword`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
                 },
-                body: JSON.stringify({ password }),
+                body: JSON.stringify({ email, otp, password }),
             });
 
             const data = await res.json();
@@ -100,6 +110,24 @@ export default function ResetPassword() {
                         </div>
                     ) : (
                         <div className="space-y-6">
+                            {/* OTP */}
+                            <div>
+                                <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block">
+                                    6-Digit OTP
+                                </label>
+                                <div className="relative">
+                                    <ShieldCheck className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                                    <input
+                                        type="text"
+                                        maxLength={6}
+                                        value={otp}
+                                        onChange={(e) => setOtp(e.target.value)}
+                                        className="w-full pl-12 pr-4 py-3 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-sm font-bold placeholder:font-bold placeholder:text-gray-300 tracking-widest"
+                                        placeholder="123456"
+                                    />
+                                </div>
+                            </div>
+
                             {/* New Password */}
                             <div>
                                 <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block">

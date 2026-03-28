@@ -26,7 +26,7 @@ const ExpectedDischargesTable = ({ discharges, onComplete, onDiscard }) => {
                     <div className="text-sm font-bold text-gray-900 tracking-tight">{d.patientName}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-600">
-                    {d.bedId ? String(d.bedId).padStart(2, '0') : '-'}
+                    {d.bedNumber}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-600">
                     {new Date(d.expectedTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}

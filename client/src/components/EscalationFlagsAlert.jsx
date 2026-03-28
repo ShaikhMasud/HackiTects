@@ -30,7 +30,9 @@ const EscalationFlagsAlert = ({ escalations }) => {
             </div>
             <div>
               <p className="text-sm font-bold text-gray-900 leading-tight tracking-tight">{esc.message}</p>
-              <p className="text-xs text-gray-500 mt-1.5 font-semibold uppercase tracking-wider">{esc.type} • {timeAgo(esc.time)}</p>
+              <p className="text-xs text-gray-500 mt-1.5 font-semibold uppercase tracking-wider">
+                {esc.type} • {timeAgo(esc.time)} ({new Date(esc.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })})
+              </p>
             </div>
           </li>
         ))}

@@ -30,24 +30,7 @@ const generateBeds = (count, prefix, wardName) => {
   });
 };
 
-const occupancyTrendData = [
-  { time: '00:00', General: 85, ICU: 90, Premium: 60 },
-  { time: '04:00', General: 82, ICU: 93, Premium: 60 },
-  { time: '08:00', General: 75, ICU: 85, Premium: 55 },
-  { time: '12:00', General: 88, ICU: 85, Premium: 70 },
-  { time: '16:00', General: 95, ICU: 96, Premium: 80 },
-  { time: '20:00', General: 90, ICU: 92, Premium: 75 },
-];
 
-const patientFlowData = [
-  { day: 'Mon', Admissions: 45, Discharges: 38 },
-  { day: 'Tue', Admissions: 52, Discharges: 48 },
-  { day: 'Wed', Admissions: 38, Discharges: 55 },
-  { day: 'Thu', Admissions: 65, Discharges: 42 },
-  { day: 'Fri', Admissions: 48, Discharges: 50 },
-  { day: 'Sat', Admissions: 30, Discharges: 45 },
-  { day: 'Sun', Admissions: 25, Discharges: 30 },
-];
 
 const ChartTooltip = ({ active, payload, label }) => {
   if (active && payload && payload.length) {
@@ -69,6 +52,9 @@ const ChartTooltip = ({ active, payload, label }) => {
 const AdminDashboard = () => {
   const [beds, setBeds] = useState([]);
   const [wards, setWards] = useState([]);
+  const [occupancyTrendData, setOccupancyTrendData] = useState([]);
+  const [patientFlowData, setPatientFlowData] = useState([]);
+  const [specializations, setSpecializations] = useState(["General", "ICU", "Premium"]);
   const [loading, setLoading] = useState(true);
   const [drilledWard, setDrilledWard] = useState(null);
   const [selectedBed, setSelectedBed] = useState(null);
@@ -250,9 +236,34 @@ const AdminDashboard = () => {
       })));
 
       setBeds(allBeds);
-      setEscalations([
-        { id: 1, type: "critical", message: "Hospital System Active: Real-time API bindings are successfully monitoring live clinical pathways.", time: new Date().toISOString() },
-      ]);
+      
+      const allEscalationsRes = await fetch("http://localhost:5000/api/escalations");
+      if (allEscalationsRes.ok) {
+        const escData = await allEscalationsRes.json();
+        setEscalations(escData.map(e => {
+            const wardPrefix = e.wardId?.wardName ? `[${e.wardId.wardName}] ` : '';
+            const bedPrefix = e.relatedBedId?.bedNumber ? `Bed ${e.relatedBedId.bedNumber} - ` : '';
+            const patientPrefix = e.relatedPatientId?.patientName ? `[${e.relatedPatientId.patientName}] ` : '';
+            return {
+                id: e._id,
+                type: e.severity ? e.severity.toLowerCase() : 'warning',
+                message: `${wardPrefix}${bedPrefix}${patientPrefix}${e.description}`,
+                time: e.createdAt || new Date().toISOString()
+            };
+        }));
+      } else { setEscalations([]); }
+
+      // Analytics
+      const analyticsRes = await fetch("http://localhost:5000/api/analytics/dashboard");
+      if (analyticsRes.ok) {
+        const analyticsData = await analyticsRes.json();
+        setOccupancyTrendData(analyticsData.occupancyTrendData);
+        setPatientFlowData(analyticsData.patientFlowData);
+        const fetchedSpecs = analyticsData.specializations;
+        if (fetchedSpecs && fetchedSpecs.length > 0) {
+            setSpecializations(fetchedSpecs);
+        }
+      }
     } catch (e) {
       console.error(e);
     } finally {
@@ -262,6 +273,29 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchHospitalData();
+  }, []);
+
+  useEffect(() => {
+    const eventSource = new EventSource("http://localhost:5000/api/events/stream");
+
+    const handleEvent = () => {
+      fetchHospitalData();
+    };
+
+    eventSource.addEventListener("bed-updated", handleEvent);
+    eventSource.addEventListener("patient-admitted", handleEvent);
+    eventSource.addEventListener("patient-discharged", handleEvent);
+    eventSource.addEventListener("escalation-created", handleEvent);
+    eventSource.addEventListener("escalation-resolved", handleEvent);
+
+    return () => {
+      eventSource.removeEventListener("bed-updated", handleEvent);
+      eventSource.removeEventListener("patient-admitted", handleEvent);
+      eventSource.removeEventListener("patient-discharged", handleEvent);
+      eventSource.removeEventListener("escalation-created", handleEvent);
+      eventSource.removeEventListener("escalation-resolved", handleEvent);
+      eventSource.close();
+    };
   }, []);
 
   const totalBeds = beds.length;
@@ -382,6 +416,9 @@ const AdminDashboard = () => {
                       <Area type="monotone" dataKey="General" stroke="#1e3a8a" strokeWidth={3} fillOpacity={1} fill="url(#colorGen)" />
                       <Area type="monotone" dataKey="ICU" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorICU)" />
                       <Area type="monotone" dataKey="Premium" stroke="#9ca3af" strokeWidth={3} fillOpacity={0.3} fill="#9ca3af" />
+                      {specializations.filter(s => !['General', 'ICU', 'Premium'].includes(s)).map((spec, i) => (
+                        <Area key={spec} type="monotone" dataKey={spec} stroke={`hsl(${i*40}, 70%, 50%)`} strokeWidth={3} fillOpacity={0.3} fill={`hsl(${i*40}, 70%, 50%)`} />
+                      ))}
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>

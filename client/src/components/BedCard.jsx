@@ -50,7 +50,14 @@ const BedCard = ({ bed, onClick }) => {
             <p className="text-base font-bold tracking-tight text-white mb-2 leading-tight">{bed.patient.name}</p>
             <div className="flex flex-col gap-0.5">
               <p className={`text-[11px] font-semibold tracking-wide uppercase ${textClass}`}>{bed.patient.condition}</p>
-              <p className={`text-[11px] font-medium opacity-80 ${contentTextClass}`}>{bed.patient.doctor} • Admin: {bed.patient.admitDate}</p>
+              <div className="flex justify-between items-center">
+                 <p className={`text-[10px] font-medium opacity-80 ${contentTextClass}`}>Admitted: {bed.patient.admitDate}</p>
+                 {bed.patient.los > 0 && (
+                   <span className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded shadow-sm ${bed.patient.los >= 7 ? 'bg-red-500 text-white' : 'bg-white/20 text-white'}`}>
+                      {bed.patient.los} DAY LOS
+                   </span>
+                 )}
+              </div>
             </div>
           </div>
         ) : isReserved && bed.patient ? (
