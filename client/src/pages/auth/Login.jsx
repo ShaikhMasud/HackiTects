@@ -59,8 +59,8 @@ export default function Login() {
             const role = data.user.role;
 
             if (role === "staff") navigate("/staff");
+            else if(role== "admin") navigate("/admin");
             else if (role === "doctor") navigate("/doctor");
-            else navigate("/admin");
 
         } catch (err) {
             alert(err.message);
@@ -160,6 +160,7 @@ export default function Login() {
                             </div>
                         </div>
 
+                        
 
                         {/* Button */}
                         <button
