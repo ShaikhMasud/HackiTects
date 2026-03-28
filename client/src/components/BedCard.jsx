@@ -7,7 +7,7 @@ const BedCard = ({ bed, onClick }) => {
   let bgClass = "bg-white border-gray-200 hover:border-blue-900";
   let statusText = "AVAILABLE";
   let textClass = "text-gray-400";
-  
+
   if (isOccupied) {
     bgClass = "bg-gradient-to-br from-blue-950 to-blue-900 border-blue-950 text-white shadow-md hover:shadow-lg";
     statusText = "OCCUPIED";
@@ -35,7 +35,7 @@ const BedCard = ({ bed, onClick }) => {
           {statusText}
         </span>
       </div>
-      
+
       <div className="flex-grow flex flex-col justify-end">
         {isOccupied && bed.patient ? (
           <div>

@@ -54,7 +54,8 @@ const StaffDashboard = () => {
           ]);
 
           setAdmissions([
-            { id: 201, patientName: "Sunita Verma", source: "Emergency", priority: "High", status: "waiting" },
+            { id: 201, patientName: "Sunita Verma", source: "Emergency", priority: "High", targetWard: "ICU Ward", status: "waiting" },
+            { id: 202, patientName: "Ramesh Singh", source: "Elective Post-Op", priority: "Standard", targetWard: "Premium Ward", status: "waiting" },
           ]);
 
           setEscalations([
@@ -74,12 +75,12 @@ const StaffDashboard = () => {
   }, []);
 
   const currentWardBeds = beds.filter(b => b.ward === activeWard);
-  
+
   const occupiedCount = currentWardBeds.filter(b => b.status === "occupied").length;
   const availableCount = currentWardBeds.filter(b => b.status === "available").length;
   const cleaningCount = currentWardBeds.filter(b => b.status === "cleaning").length;
   const activeOccupancy = Math.round((occupiedCount / (currentWardBeds.length || 1)) * 100) || 0;
-  
+
   const now = new Date();
   const time4h = new Date(now.getTime() + 4 * 60 * 60 * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   const time8h = new Date(now.getTime() + 8 * 60 * 60 * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -125,11 +126,10 @@ const StaffDashboard = () => {
             <button
               key={ward}
               onClick={() => setActiveWard(ward)}
-              className={`px-5 py-3 md:py-2.5 text-xs font-bold uppercase tracking-widest rounded transition-colors whitespace-nowrap ${
-                activeWard === ward 
-                ? "bg-gradient-to-r from-blue-950 to-blue-900 text-white shadow-sm" 
-                : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"
-              }`}
+              className={`px-5 py-3 md:py-2.5 text-xs font-bold uppercase tracking-widest rounded transition-colors whitespace-nowrap ${activeWard === ward
+                  ? "bg-gradient-to-r from-blue-950 to-blue-900 text-white shadow-sm"
+                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"
+                }`}
             >
               {ward}
             </button>
@@ -163,7 +163,7 @@ const StaffDashboard = () => {
             <span className="flex items-center gap-2"><span className="w-4 h-4 rounded-sm bg-white border-2 border-gray-200"></span> AVAILABLE</span>
           </div>
         </div>
-        
+
         {/* Deep highly responsive grid for Mobile to 4K Ultrawide */}
         <div className="p-5 md:p-8 bg-white">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-4 sm:gap-6">
@@ -176,13 +176,13 @@ const StaffDashboard = () => {
 
       {/* Auxiliary Information Tables (Side-by-side on desktop) */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
-        <ExpectedDischargesTable 
-          discharges={discharges.filter(d => currentWardBeds.some(b => b.bedNumber === d.bedId || d.bedId === null))} 
-          onComplete={(id) => setDischarges(prev => prev.map(item => item.id === id ? { ...item, status: 'completed' } : item))} 
+        <ExpectedDischargesTable
+          discharges={discharges.filter(d => currentWardBeds.some(b => b.bedNumber === d.bedId || d.bedId === null))}
+          onComplete={(id) => setDischarges(prev => prev.map(item => item.id === id ? { ...item, status: 'completed' } : item))}
         />
-        <PendingAdmissionsTable 
-          admissions={admissions} 
-          onArrive={(id) => setAdmissions(prev => prev.map(item => item.id === id ? { ...item, status: 'arrived' } : item))} 
+        <PendingAdmissionsTable
+          admissions={admissions}
+          onArrive={(id) => setAdmissions(prev => prev.map(item => item.id === id ? { ...item, status: 'arrived' } : item))}
         />
       </div>
 

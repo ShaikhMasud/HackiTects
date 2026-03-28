@@ -14,7 +14,7 @@ const PendingAdmissionsTable = ({ admissions, onArrive }) => {
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-[11px] font-extrabold text-gray-500 uppercase tracking-widest">Patient</th>
-                <th className="px-6 py-3 text-left text-[11px] font-extrabold text-gray-500 uppercase tracking-widest">Source</th>
+                <th className="px-6 py-3 text-left text-[11px] font-extrabold text-gray-500 uppercase tracking-widest">Required Ward</th>
                 <th className="px-6 py-3 text-left text-[11px] font-extrabold text-gray-500 uppercase tracking-widest">Priority</th>
                 <th className="px-6 py-3 text-left text-[11px] font-extrabold text-gray-500 uppercase tracking-widest">Action</th>
               </tr>
@@ -24,9 +24,12 @@ const PendingAdmissionsTable = ({ admissions, onArrive }) => {
                 <tr key={a.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-bold text-gray-900 tracking-tight">{a.patientName}</div>
+                    <div className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">{a.source}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-600">
-                    {a.source}
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <span className="text-xs font-extrabold text-gray-800 tracking-tight uppercase">
+                      {a.targetWard}
+                    </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <span className={`inline-flex items-center px-2.5 py-1 rounded text-[10px] font-bold uppercase tracking-widest ${a.priority === 'High' ? 'bg-gray-900 text-white' : 'bg-gray-100 text-gray-600'}`}>
