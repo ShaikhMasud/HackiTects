@@ -12,6 +12,18 @@ const userSchema = new mongoose.Schema(
       enum: ["doctor", "nurse", "admin"],
       required: true,
     },
+    firstName: String,
+    lastName: String,
+    assignedBeds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Bed",
+      },
+    ],
+    ward: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Ward",
+    },
   },
   { timestamps: true },
 );
