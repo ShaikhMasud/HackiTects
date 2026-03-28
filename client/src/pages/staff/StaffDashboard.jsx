@@ -33,6 +33,33 @@ const StaffDashboard = () => {
   const [selectedBed, setSelectedBed] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeWard, setActiveWard] = useState("General Ward");
+  const [selectedAdmissionId, setSelectedAdmissionId] = useState("");
+  
+  const [isAdmissionModalOpen, setIsAdmissionModalOpen] = useState(false);
+  const [admissionForm, setAdmissionForm] = useState({
+    patientName: "",
+    wardId: "General Ward",
+    priority: "Routine",
+    doctorId: "D-101",
+  });
+
+  const handleAdmissionChange = (e) => {
+    setAdmissionForm({ ...admissionForm, [e.target.name]: e.target.value });
+  };
+
+  const submitAdmission = () => {
+    const newAdmission = {
+      id: Math.floor(Math.random() * 10000),
+      patientName: admissionForm.patientName,
+      source: "Manual Entry",
+      priority: admissionForm.priority === "Emergency" ? "High" : admissionForm.priority === "Urgent" ? "Medium" : "Standard",
+      targetWard: admissionForm.wardId,
+      status: "waiting",
+    };
+    setAdmissions((prev) => [newAdmission, ...prev]);
+    setAdmissionForm({ patientName: "", wardId: "General Ward", priority: "Routine", doctorId: "D-101" });
+    setIsAdmissionModalOpen(false);
+  };
 
   const [discharges, setDischarges] = useState([]);
   const [admissions, setAdmissions] = useState([]);
@@ -99,10 +126,44 @@ const StaffDashboard = () => {
   const updateStatus = (newStatus) => {
     setBeds(prev => prev.map(bed =>
       bed.id === selectedBed.id
-        ? { ...bed, status: newStatus, patient: newStatus === "available" ? null : bed.patient }
+        ? { ...bed, status: newStatus, patient: ["available", "cleaning"].includes(newStatus) ? null : bed.patient }
         : bed
     ));
     setIsModalOpen(false);
+  };
+
+  const handleDischarge = () => {
+     setBeds(prev => prev.map(bed =>
+       bed.id === selectedBed.id
+         ? { ...bed, status: "cleaning", patient: null }
+         : bed
+     ));
+     setDischarges(prev => prev.map(d => d.bedId === selectedBed.bedNumber ? { ...d, status: 'completed' } : d));
+     setIsModalOpen(false);
+  };
+
+  const handleAssignAdmission = (admitId) => {
+     const admin = admissions.find(a => a.id.toString() === admitId.toString());
+     if(!admin) return;
+
+     setBeds(prev => prev.map(bed => 
+        bed.id === selectedBed.id 
+           ? { 
+               ...bed, 
+               status: "occupied", 
+               patient: { 
+                 name: admin.patientName, 
+                 condition: admin.source, 
+                 doctor: "Assigned Doctor", 
+                 admitDate: new Date().toISOString().split('T')[0] 
+               } 
+             } 
+           : bed
+     ));
+
+     setAdmissions(prev => prev.filter(a => a.id.toString() !== admitId.toString()));
+     setSelectedAdmissionId("");
+     setIsModalOpen(false);
   };
 
   if (loading) {
@@ -121,19 +182,24 @@ const StaffDashboard = () => {
           <h2 className="text-3xl font-extrabold tracking-tight text-gray-900">WARD DASHBOARD</h2>
           <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest mt-2">Live mapping & capacity forecasts</p>
         </div>
-        <div className="flex w-full md:w-auto overflow-x-auto space-x-2 bg-gray-100 p-1 rounded-lg border border-gray-200 hide-scrollbar shrink-0">
-          {["General Ward", "ICU Ward", "Premium Ward"].map(ward => (
-            <button
-              key={ward}
-              onClick={() => setActiveWard(ward)}
-              className={`px-5 py-3 md:py-2.5 text-xs font-bold uppercase tracking-widest rounded transition-colors whitespace-nowrap ${activeWard === ward
-                  ? "bg-gradient-to-r from-blue-950 to-blue-900 text-white shadow-sm"
-                  : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"
-                }`}
-            >
-              {ward}
-            </button>
-          ))}
+        <div className="flex w-full md:w-auto flex-col md:flex-row gap-4 items-start md:items-center shrink-0">
+          <div className="flex w-full overflow-x-auto space-x-2 bg-gray-100 p-1 rounded-lg border border-gray-200 hide-scrollbar">
+            {["General Ward", "ICU Ward", "Premium Ward"].map(ward => (
+              <button
+                key={ward}
+                onClick={() => setActiveWard(ward)}
+                className={`px-5 py-3 md:py-2.5 text-xs font-bold uppercase tracking-widest rounded transition-colors whitespace-nowrap ${activeWard === ward
+                    ? "bg-gradient-to-r from-blue-950 to-blue-900 text-white shadow-sm"
+                    : "text-gray-600 hover:text-gray-900 hover:bg-gray-200"
+                  }`}
+              >
+                {ward}
+              </button>
+            ))}
+          </div>
+          <Button onClick={() => setIsAdmissionModalOpen(true)} className="px-6 py-3 md:py-3.5 text-xs font-extrabold uppercase tracking-widest bg-gray-900 hover:bg-black w-full md:w-auto shadow-none whitespace-nowrap">
+            + Create Admission
+          </Button>
         </div>
       </div>
 
@@ -177,12 +243,14 @@ const StaffDashboard = () => {
       {/* Auxiliary Information Tables (Side-by-side on desktop) */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
         <ExpectedDischargesTable
-          discharges={discharges.filter(d => currentWardBeds.some(b => b.bedNumber === d.bedId || d.bedId === null))}
+          discharges={discharges.filter(d => currentWardBeds.some(b => b.bedNumber === d.bedId || b.id === d.bedId))}
           onComplete={(id) => setDischarges(prev => prev.map(item => item.id === id ? { ...item, status: 'completed' } : item))}
+          onDiscard={(id) => setDischarges(prev => prev.filter(item => item.id !== id))}
         />
         <PendingAdmissionsTable
-          admissions={admissions}
+          admissions={admissions.filter(a => a.targetWard === activeWard)}
           onArrive={(id) => setAdmissions(prev => prev.map(item => item.id === id ? { ...item, status: 'arrived' } : item))}
+          onDiscard={(id) => setAdmissions(prev => prev.filter(item => item.id !== id))}
         />
       </div>
 
@@ -207,10 +275,39 @@ const StaffDashboard = () => {
                     <p className="text-sm font-bold text-gray-900">{selectedBed.patient.admitDate}</p>
                   </div>
                 </div>
+                <div className="mt-6 pt-4 border-t border-gray-100 flex justify-end">
+                  <Button onClick={handleDischarge} className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white text-[10px] font-extrabold uppercase tracking-widest shadow-none border-none">
+                     Discharge Patient & Clean Bed
+                  </Button>
+                </div>
               </div>
             )}
+
+            {["available", "cleaning"].includes(selectedBed.status) && (
+              <div className="bg-white p-5 rounded-lg border-2 border-gray-200 mb-4">
+                 <p className="text-xs font-bold text-gray-900 uppercase tracking-widest mb-4">Assign Admission</p>
+                 <select 
+                     className="w-full pl-4 pr-4 py-3 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-sm font-bold text-gray-900 bg-white mb-4"
+                     value={selectedAdmissionId}
+                     onChange={(e) => setSelectedAdmissionId(e.target.value)}
+                 >
+                    <option value="">-- Select Pending/Arrived Admission --</option>
+                    {admissions.filter(a => (a.status === 'waiting' || a.status === 'arrived') && a.targetWard === selectedBed.ward).map(a => (
+                       <option key={a.id} value={a.id}>{a.patientName} [{a.status.toUpperCase()}]</option>
+                    ))}
+                 </select>
+                 <Button 
+                    onClick={() => handleAssignAdmission(selectedAdmissionId)} 
+                    disabled={!selectedAdmissionId}
+                    className="w-full py-4 border-none bg-gray-900 text-white hover:bg-black text-xs font-bold uppercase tracking-wider disabled:opacity-50"
+                 >
+                    Assign Patient to Bed
+                 </Button>
+              </div>
+            )}
+
             <div>
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Update Status</p>
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-4">Manual Status Update</p>
               <div className="grid grid-cols-2 gap-3">
                 <Button variant="secondary" onClick={() => updateStatus("available")} className="w-full py-4 border-2 border-gray-200 text-gray-900 hover:bg-white hover:border-gray-400 text-xs font-bold uppercase tracking-wider shadow-none">
                   Available
@@ -229,6 +326,94 @@ const StaffDashboard = () => {
           </div>
         </Modal>
       )}
+
+      {/* CREATE ADMISSION MODAL */}
+      <Modal
+        isOpen={isAdmissionModalOpen}
+        onClose={() => setIsAdmissionModalOpen(false)}
+        title="SCHEDULE NEW ADMISSION"
+      >
+        <div className="space-y-6">
+          <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 leading-relaxed">
+            Register a direct patient incoming stream to the active pending bed roster.
+          </p>
+
+          <div>
+            <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block">
+              Patient Full Name
+            </label>
+            <input
+              name="patientName"
+              placeholder="e.g. John Doe"
+              value={admissionForm.patientName}
+              onChange={handleAdmissionChange}
+              className="w-full pl-4 pr-4 py-3 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-sm font-bold placeholder:font-bold placeholder:text-gray-300"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+               <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block">
+                Target Ward
+               </label>
+               <select
+                 name="wardId"
+                 value={admissionForm.wardId}
+                 onChange={handleAdmissionChange}
+                 className="w-full pl-4 pr-4 py-3 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-sm font-bold text-gray-900 bg-white"
+               >
+                 <option value="General Ward">General Ward</option>
+                 <option value="ICU Ward">ICU Ward</option>
+                 <option value="Premium Ward">Premium Ward</option>
+               </select>
+            </div>
+            
+            <div>
+              <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block">
+                Clinical Priority
+              </label>
+              <select
+                name="priority"
+                value={admissionForm.priority}
+                onChange={handleAdmissionChange}
+                className="w-full pl-4 pr-4 py-3 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-sm font-bold text-gray-900 bg-white"
+              >
+                 <option value="Emergency">Emergency</option>
+                 <option value="Urgent">Urgent</option>
+                 <option value="Routine">Routine</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block">
+              Attending Physician
+            </label>
+            <select
+              name="doctorId"
+              value={admissionForm.doctorId}
+              onChange={handleAdmissionChange}
+              className="w-full pl-4 pr-4 py-3 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-sm font-bold text-gray-900 bg-white"
+            >
+               <option value="D-101">Dr. Smith [D-101]</option>
+               <option value="D-102">Dr. Jones [D-102]</option>
+               <option value="D-103">Dr. Patel [D-103]</option>
+               <option value="D-104">Dr. Williams [D-104]</option>
+            </select>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100">
+            <Button variant="outline" onClick={() => setIsAdmissionModalOpen(false)} className="px-6 text-[10px] font-extrabold uppercase tracking-widest shadow-none border-2 border-gray-200 text-gray-600">
+              Cancel
+            </Button>
+            <Button onClick={submitAdmission} className="px-6 text-[10px] font-extrabold uppercase tracking-widest shadow-none border-2 border-gray-900 bg-gray-900">
+              Submit Admission
+            </Button>
+          </div>
+
+        </div>
+      </Modal>
     </div>
   );
 };

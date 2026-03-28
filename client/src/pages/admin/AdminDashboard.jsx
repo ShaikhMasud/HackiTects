@@ -72,6 +72,26 @@ const AdminDashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [escalations, setEscalations] = useState([]);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isManageMenuOpen, setIsManageMenuOpen] = useState(false);
+  const [isCreateWardModalOpen, setIsCreateWardModalOpen] = useState(false);
+
+  const [wardForm, setWardForm] = useState({
+    wardName: "",
+    wardCategory: "",
+    numberOfBeds: "",
+  });
+
+  const handleWardChange = (e) => {
+    setWardForm({
+      ...wardForm,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleCreateWard = () => {
+    console.log("Creating Ward:", wardForm);
+    setIsCreateWardModalOpen(false);
+  };
 
   const [memberForm, setMemberForm] = useState({
     firstName: "",
@@ -157,11 +177,27 @@ const AdminDashboard = () => {
           <h2 className="text-4xl font-extrabold tracking-tight text-gray-900">ADMINISTRATION VIEW</h2>
           <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-2">Hospital Executive Analytics</p>
         </div>
-        <div className="flex items-center gap-3">
-
-          <Button onClick={() => setIsAddModalOpen(true)}>
-            + Add Member
+        <div className="flex items-center gap-3 relative">
+          <Button onClick={() => setIsManageMenuOpen(!isManageMenuOpen)} className="text-xs font-extrabold uppercase tracking-widest px-6 py-3 shadow-none">
+            Manage Hospital ▼
           </Button>
+
+          {isManageMenuOpen && (
+            <div className="absolute right-0 top-full mt-2 w-56 bg-white border-2 border-gray-900 rounded shadow-xl z-50 overflow-hidden">
+              <button 
+                onClick={() => { setIsAddModalOpen(true); setIsManageMenuOpen(false); }}
+                className="w-full text-left px-5 py-4 text-[10px] font-extrabold uppercase tracking-widest text-gray-900 hover:bg-gray-100 hover:text-black transition-colors border-b-2 border-gray-100"
+              >
+                + Add System Member
+              </button>
+              <button 
+                onClick={() => { setIsCreateWardModalOpen(true); setIsManageMenuOpen(false); }}
+                className="w-full text-left px-5 py-4 text-[10px] font-extrabold uppercase tracking-widest text-gray-900 hover:bg-gray-100 hover:text-black transition-colors"
+              >
+                + Create New Ward
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -445,12 +481,79 @@ const AdminDashboard = () => {
           </select>
 
           {/* Buttons */}
-          <div className="flex justify-end gap-2 mt-4">
-            <Button variant="ghost" onClick={() => setIsAddModalOpen(false)}>
+          <div className="flex justify-end gap-2 mt-4 pt-4 border-t border-gray-100">
+            <Button variant="outline" onClick={() => setIsAddModalOpen(false)} className="px-6 text-[10px] font-extrabold uppercase tracking-widest shadow-none border-2 border-gray-200 text-gray-600">
               Cancel
             </Button>
-            <Button onClick={handleAddMember}>
-              Add Member
+            <Button onClick={handleAddMember} className="px-6 text-[10px] font-extrabold uppercase tracking-widest shadow-none">
+              Commit Member
+            </Button>
+          </div>
+
+        </div>
+      </Modal>
+
+      {/* CREATE WARD MODAL */}
+      <Modal
+        isOpen={isCreateWardModalOpen}
+        onClose={() => setIsCreateWardModalOpen(false)}
+        title="CREATE HOSPITAL WARD"
+      >
+        <div className="space-y-6">
+          <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 leading-relaxed">
+            Provision a new clinical ward inside the central administration roster. This expands capacity limits.
+          </p>
+
+          <div>
+            <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block">
+              Ward Identification Name
+            </label>
+            <input
+              name="wardName"
+              placeholder="e.g. Pediatrics Wing"
+              value={wardForm.wardName}
+              onChange={handleWardChange}
+              className="w-full pl-4 pr-4 py-3 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-sm font-bold placeholder:font-bold placeholder:text-gray-300"
+            />
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex-1">
+               <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block">
+                Ward Category
+               </label>
+               <input
+                 type="text"
+                 name="wardCategory"
+                 placeholder="e.g. ICU, General"
+                 value={wardForm.wardCategory}
+                 onChange={handleWardChange}
+                 className="w-full pl-4 pr-4 py-3 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-sm font-bold placeholder:font-bold placeholder:text-gray-300"
+               />
+            </div>
+            
+            <div className="w-1/3">
+              <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block">
+                Bed Count
+              </label>
+              <input
+                type="number"
+                name="numberOfBeds"
+                placeholder="0"
+                value={wardForm.numberOfBeds}
+                onChange={handleWardChange}
+                className="w-full pl-4 pr-4 py-3 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-sm font-bold placeholder:font-bold placeholder:text-gray-300"
+              />
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100">
+            <Button variant="outline" onClick={() => setIsCreateWardModalOpen(false)} className="px-6 text-[10px] font-extrabold uppercase tracking-widest shadow-none border-2 border-gray-200 text-gray-600">
+              Abort
+            </Button>
+            <Button onClick={handleCreateWard} className="px-6 text-[10px] font-extrabold uppercase tracking-widest shadow-none">
+              Deploy Ward Space
             </Button>
           </div>
 

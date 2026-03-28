@@ -51,6 +51,12 @@ const DoctorDashboard = () => {
     setIsModalOpen(false);
   };
 
+  const updatePatientStatus = (newStatus) => {
+    setPatients(prev => prev.map(p => p.id === selectedPatient.id ? { ...p, status: newStatus } : p));
+    setSelectedPatient(prev => ({...prev, status: newStatus}));
+  };
+
+
   const handleGeneratePDF = useReactToPrint({
     contentRef: handoverPrintRef,
     // fallback for v2:
@@ -152,20 +158,18 @@ const DoctorDashboard = () => {
 
             <div className="pt-4 border-t border-gray-200">
               <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-4">Physician Actions</p>
-              <div className="grid grid-cols-1 gap-3">
-                {selectedPatient.status !== 'cleared_for_discharge' ? (
-                  <Button 
-                    variant="primary" 
-                    onClick={authorizeDischarge} 
-                    className="w-full py-5 text-sm font-extrabold uppercase tracking-widest shadow-md transition-all active:scale-[0.99] border-none"
-                  >
-                    Authorize Patient Discharge
-                  </Button>
-                ) : (
-                  <div className="w-full py-5 bg-gray-50 border-2 border-dashed border-gray-300 text-center rounded-lg">
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-widest">Discharge Already Authorized</p>
-                  </div>
-                )}
+              <div className="flex flex-col gap-3">
+                 <label className="text-[10px] font-extrabold text-gray-900 uppercase tracking-widest block">Update Clinical Status</label>
+                 <select 
+                    value={selectedPatient.status}
+                    onChange={(e) => updatePatientStatus(e.target.value)}
+                    className="w-full pl-4 pr-4 py-3 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-sm font-bold text-gray-900 bg-white shadow-sm"
+                 >
+                    <option value="admitted">Admitted (Standard Care)</option>
+                    <option value="critical">Critical / ICU Observation</option>
+                    <option value="pending_clearance">Pending Medical Clearance</option>
+                    <option value="cleared_for_discharge">Cleared for Discharge</option>
+                 </select>
               </div>
             </div>
           </div>
