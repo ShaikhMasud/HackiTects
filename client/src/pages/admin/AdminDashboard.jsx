@@ -70,6 +70,7 @@ const AdminDashboard = () => {
   const [selectedBed, setSelectedBed] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [escalations, setEscalations] = useState([]);
+  const [activeGlobalTab, setActiveGlobalTab] = useState("wards");
 
   useEffect(() => {
     const fetchHospitalData = async () => {
@@ -132,14 +133,7 @@ const AdminDashboard = () => {
           <h2 className="text-4xl font-extrabold tracking-tight text-gray-900">ADMINISTRATION VIEW</h2>
           <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-2">Hospital Executive Analytics</p>
         </div>
-        <div className="flex space-x-2">
-           <div className="flex flex-col text-right">
-             <span className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Network Status</span>
-             <span className="text-sm font-extrabold text-blue-900 uppercase tracking-wider flex items-center justify-end gap-2 mt-1">
-               <span className="w-2.5 h-2.5 rounded-full bg-gradient-to-r from-blue-950 to-blue-900 animate-pulse"></span> SECURE
-             </span>
-           </div>
-        </div>
+
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
@@ -150,74 +144,97 @@ const AdminDashboard = () => {
 
       <EscalationFlagsAlert escalations={escalations} />
 
-      {/* Analytics Section */}
-      <div className="border-t border-gray-200 pt-8 mt-4">
-        <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-widest mb-6">Real-Time Data Analytics</h3>
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
-            
-            {/* Occupancy Trend Chart */}
-            <div className="bg-white border border-gray-200 p-8 rounded-xl shadow-sm">
-                <div className="mb-6">
-                   <h4 className="text-xs font-extrabold text-gray-900 uppercase tracking-widest">24-Hour Occupancy Trend</h4>
-                   <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Percentage Utilization by Ward</p>
-                </div>
-                <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={occupancyTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="colorGen" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#1e3a8a" stopOpacity={0.8}/>
-                            <stop offset="95%" stopColor="#1e3a8a" stopOpacity={0}/>
-                          </linearGradient>
-                          <linearGradient id="colorICU" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                            <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                        <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9ca3af' }} dy={10} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9ca3af' }} />
-                        <RechartsTooltip content={<ChartTooltip />} />
-                        <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }} />
-                        <Area type="monotone" dataKey="General" stroke="#1e3a8a" strokeWidth={3} fillOpacity={1} fill="url(#colorGen)" />
-                        <Area type="monotone" dataKey="ICU" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorICU)" />
-                        <Area type="monotone" dataKey="Premium" stroke="#9ca3af" strokeWidth={3} fillOpacity={0.3} fill="#9ca3af" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
-
-            {/* Velocity Flow Chart */}
-            <div className="bg-white border border-gray-200 p-8 rounded-xl shadow-sm">
-                <div className="mb-6">
-                   <h4 className="text-xs font-extrabold text-gray-900 uppercase tracking-widest">Patient Flow Velocity</h4>
-                   <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">7-Day Admissions vs Discharges</p>
-                </div>
-                <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={patientFlowData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                        <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9ca3af' }} dy={10} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9ca3af' }} />
-                        <RechartsTooltip content={<ChartTooltip />} />
-                        <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }} />
-                        <Bar dataKey="Admissions" fill="#1e3a8a" radius={[4, 4, 0, 0]} barSize={20} />
-                        <Bar dataKey="Discharges" fill="#d1d5db" radius={[4, 4, 0, 0]} barSize={20} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
-
-        </div>
+      {/* Global Tab Toggles */}
+      <div className="flex justify-center md:justify-start gap-6 border-b border-gray-200 mt-10">
+        <button 
+          onClick={() => setActiveGlobalTab("wards")} 
+          className={`px-4 py-4 text-xs font-extrabold uppercase tracking-widest transition-colors border-b-2 shadow-none ${activeGlobalTab === "wards" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-900"}`}
+        >
+          Hospital Wards Directory
+        </button>
+        <button 
+          onClick={() => setActiveGlobalTab("analytics")} 
+          className={`px-4 py-4 text-xs font-extrabold uppercase tracking-widest transition-colors border-b-2 shadow-none ${activeGlobalTab === "analytics" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-900"}`}
+        >
+          Predictive Data Analytics
+        </button>
       </div>
 
-      <div className="border-t border-gray-200 pt-8 mt-4">
-        <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-widest mb-6">Ward Distribution Overviews</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-            {wards.map(wardName => (
-               <AdminWardCard key={wardName} name={wardName} beds={beds.filter(b => b.ward === wardName)} onDrillDown={handleDrillDown} />
-            ))}
-        </div>
+      <div className="min-h-[400px]">
+        {/* Analytics Section */}
+        {activeGlobalTab === "analytics" && (
+          <div className="pt-8 animate-in fade-in duration-500">
+            <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-widest mb-6">Real-Time Data Analytics</h3>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
+                
+                {/* Occupancy Trend Chart */}
+                <div className="bg-white border border-gray-200 p-8 rounded-xl shadow-sm">
+                    <div className="mb-6">
+                       <h4 className="text-xs font-extrabold text-gray-900 uppercase tracking-widest">24-Hour Occupancy Trend</h4>
+                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Percentage Utilization by Ward</p>
+                    </div>
+                    <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={occupancyTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="colorGen" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#1e3a8a" stopOpacity={0.8}/>
+                                <stop offset="95%" stopColor="#1e3a8a" stopOpacity={0}/>
+                              </linearGradient>
+                              <linearGradient id="colorICU" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
+                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                            <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9ca3af' }} dy={10} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9ca3af' }} />
+                            <RechartsTooltip content={<ChartTooltip />} />
+                            <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }} />
+                            <Area type="monotone" dataKey="General" stroke="#1e3a8a" strokeWidth={3} fillOpacity={1} fill="url(#colorGen)" />
+                            <Area type="monotone" dataKey="ICU" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorICU)" />
+                            <Area type="monotone" dataKey="Premium" stroke="#9ca3af" strokeWidth={3} fillOpacity={0.3} fill="#9ca3af" />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* Velocity Flow Chart */}
+                <div className="bg-white border border-gray-200 p-8 rounded-xl shadow-sm">
+                    <div className="mb-6">
+                       <h4 className="text-xs font-extrabold text-gray-900 uppercase tracking-widest">Patient Flow Velocity</h4>
+                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">7-Day Admissions vs Discharges</p>
+                    </div>
+                    <div className="h-[300px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={patientFlowData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                            <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9ca3af' }} dy={10} />
+                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9ca3af' }} />
+                            <RechartsTooltip content={<ChartTooltip />} />
+                            <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }} />
+                            <Bar dataKey="Admissions" fill="#1e3a8a" radius={[4, 4, 0, 0]} barSize={20} />
+                            <Bar dataKey="Discharges" fill="#d1d5db" radius={[4, 4, 0, 0]} barSize={20} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+            </div>
+          </div>
+        )}
+
+        {/* Wards Distribution Section */}
+        {activeGlobalTab === "wards" && (
+          <div className="pt-8 animate-in fade-in duration-500">
+            <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-widest mb-6">Ward Distribution Overviews</h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+                {wards.map(wardName => (
+                   <AdminWardCard key={wardName} name={wardName} beds={beds.filter(b => b.ward === wardName)} onDrillDown={handleDrillDown} />
+                ))}
+            </div>
+          </div>
+        )}
       </div>
     </>
   );
