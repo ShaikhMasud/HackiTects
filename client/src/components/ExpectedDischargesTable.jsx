@@ -1,6 +1,6 @@
 import Button from "./Button";
 
-const ExpectedDischargesTable = ({ discharges, onComplete }) => {
+const ExpectedDischargesTable = ({ discharges, onComplete, onDiscard }) => {
   return (
     <div className="w-full bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col h-full">
       <div className="px-6 py-5 border-b border-gray-200 bg-white">
@@ -31,9 +31,9 @@ const ExpectedDischargesTable = ({ discharges, onComplete }) => {
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-semibold text-gray-600">
                     {new Date(d.expectedTime).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap flex items-center gap-2">
                     {d.status === 'completed' ? (
-                      <span className="inline-flex items-center text-xs font-bold uppercase tracking-widest text-gray-400">
+                      <span className="inline-flex items-center px-4 text-xs font-bold uppercase tracking-widest text-gray-400">
                         Completed
                       </span>
                     ) : (
@@ -41,6 +41,9 @@ const ExpectedDischargesTable = ({ discharges, onComplete }) => {
                         Mark Done
                       </Button>
                     )}
+                    <Button variant="outline" size="sm" onClick={() => onDiscard && onDiscard(d.id)} className="text-red-600 bg-white border-2 border-red-200 hover:border-red-600 hover:bg-red-50 hover:text-red-700 shadow-none text-xs font-bold uppercase tracking-wider px-2.5 transition-colors" title="Discard Discharge Entry">
+                      ×
+                    </Button>
                   </td>
                 </tr>
               ))}

@@ -1,6 +1,6 @@
 import Button from "./Button";
 
-const PendingAdmissionsTable = ({ admissions, onArrive }) => {
+const PendingAdmissionsTable = ({ admissions, onArrive, onDiscard }) => {
   return (
     <div className="w-full bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col h-full">
       <div className="px-6 py-5 border-b border-gray-200 bg-white">
@@ -36,9 +36,9 @@ const PendingAdmissionsTable = ({ admissions, onArrive }) => {
                       {a.priority}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-6 py-4 whitespace-nowrap flex items-center gap-2">
                     {a.status === 'arrived' ? (
-                      <span className="inline-flex items-center text-xs font-bold uppercase tracking-widest text-gray-400">
+                      <span className="inline-flex items-center px-4 text-xs font-bold uppercase tracking-widest text-gray-400">
                         Arrived
                       </span>
                     ) : (
@@ -46,6 +46,9 @@ const PendingAdmissionsTable = ({ admissions, onArrive }) => {
                         Mark Arrived
                       </Button>
                     )}
+                    <Button variant="outline" size="sm" onClick={() => onDiscard(a.id)} className="text-red-600 bg-white border-2 border-red-200 hover:border-red-600 hover:bg-red-50 hover:text-red-700 shadow-none text-xs font-bold uppercase tracking-wider px-2.5 transition-colors" title="Discard Admission">
+                      ×
+                    </Button>
                   </td>
                 </tr>
               ))}

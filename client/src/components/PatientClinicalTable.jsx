@@ -2,7 +2,7 @@ import Button from "./Button";
 import { Download, FileText } from "lucide-react";
 import { toast } from "react-toastify";
 
-const PatientClinicalTable = ({ patients, onReview }) => {
+const PatientClinicalTable = ({ patients, onReview, onReport }) => {
   return (
     <div className="w-full bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
       <div className="px-8 py-5 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
@@ -62,11 +62,11 @@ const PatientClinicalTable = ({ patients, onReview }) => {
                   </td>
                   <td className="px-8 py-6 whitespace-nowrap">
                     {p.status === 'cleared_for_discharge' ? (
-                       <button onClick={() => toast.info(`Downloading Discharge Summary for ${p.name}...`)} className="flex items-center justify-center gap-1.5 px-3 py-1.5 border-2 border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white transition-colors rounded text-[9px] font-extrabold uppercase tracking-widest">
+                       <button onClick={() => onReport ? onReport(p, 'discharge') : toast.info(`Downloading Discharge Summary for ${p.name}...`)} className="flex items-center justify-center gap-1.5 px-3 py-1.5 border-2 border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white transition-colors rounded text-[9px] font-extrabold uppercase tracking-widest">
                           <Download size={12} strokeWidth={3} /> Discharge
                        </button>
                     ) : (
-                       <button onClick={() => toast.info(`Downloading Clinical History for ${p.name}...`)} className="flex items-center justify-center gap-1.5 px-3 py-1.5 border-2 border-gray-200 text-gray-400 hover:border-gray-900 hover:text-gray-900 transition-colors rounded text-[9px] font-extrabold uppercase tracking-widest">
+                       <button onClick={() => onReport ? onReport(p, 'clinical') : toast.info(`Downloading Clinical History for ${p.name}...`)} className="flex items-center justify-center gap-1.5 px-3 py-1.5 border-2 border-gray-200 text-gray-400 hover:border-gray-900 hover:text-gray-900 transition-colors rounded text-[9px] font-extrabold uppercase tracking-widest">
                           <FileText size={12} strokeWidth={3} /> Clinical
                        </button>
                     )}
