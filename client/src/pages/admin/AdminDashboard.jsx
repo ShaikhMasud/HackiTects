@@ -87,10 +87,57 @@ const AdminDashboard = () => {
     });
   };
 
-  const handleAddMember = () => {
-    console.log(memberForm); // later backend
+  const handleAddMember = async () => {
+  try {
+    // Optional: basic validation
+    if (!memberForm.email || !memberForm.password) {
+      alert("Email and password are required");
+      return;
+    }
+    if(memberForm.role=="staff"){
+      memberForm.role="nurse"
+    }
+
+    const res = await fetch("http://localhost:5000/api/auth/register", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: memberForm.email,
+        password: memberForm.password,
+        role: memberForm.role,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!res.ok) {
+      throw new Error(data.message || "Registration failed");
+    }
+
+    // ✅ Success
+    alert("Member added successfully");
+
+    // (optional) store token if needed
+    // localStorage.setItem("token", data.token);
+
+    // ✅ Reset form
+    setMemberForm({
+      firstName: "",
+      lastName: "",
+      email: "",
+      password: "",
+      role: "staff",
+    });
+
+    // ✅ Close modal
     setIsAddModalOpen(false);
-  };
+
+  } catch (err) {
+    alert(err.message);
+  }
+};
   const [activeGlobalTab, setActiveGlobalTab] = useState("wards");
 
   useEffect(() => {
