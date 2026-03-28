@@ -70,6 +70,27 @@ const AdminDashboard = () => {
   const [selectedBed, setSelectedBed] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [escalations, setEscalations] = useState([]);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  const [memberForm, setMemberForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    role: "staff",
+  });
+
+  const handleMemberChange = (e) => {
+    setMemberForm({
+      ...memberForm,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleAddMember = () => {
+    console.log(memberForm); // later backend
+    setIsAddModalOpen(false);
+  };
   const [activeGlobalTab, setActiveGlobalTab] = useState("wards");
 
   useEffect(() => {
@@ -133,27 +154,32 @@ const AdminDashboard = () => {
           <h2 className="text-4xl font-extrabold tracking-tight text-gray-900">ADMINISTRATION VIEW</h2>
           <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-2">Hospital Executive Analytics</p>
         </div>
+        <div className="flex items-center gap-3">
 
+          <Button onClick={() => setIsAddModalOpen(true)}>
+            + Add Member
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-         <StatCard label="Global Occupancy" value={`${globalOccupancy}%`} subtext={`${totalOccupied} of ${totalBeds} Active Beds`} />
-         <StatCard label="Cleaning Backlog" value={totalCleaning} subtext="Beds Unavailable Pending Prep" />
-         <StatCard label="Critical Alerts" value={escalations.length} subtext="Requiring Administrative Review" />
+        <StatCard label="Global Occupancy" value={`${globalOccupancy}%`} subtext={`${totalOccupied} of ${totalBeds} Active Beds`} />
+        <StatCard label="Cleaning Backlog" value={totalCleaning} subtext="Beds Unavailable Pending Prep" />
+        <StatCard label="Critical Alerts" value={escalations.length} subtext="Requiring Administrative Review" />
       </div>
 
       <EscalationFlagsAlert escalations={escalations} />
 
       {/* Global Tab Toggles */}
       <div className="flex justify-center md:justify-start gap-6 border-b border-gray-200 mt-10">
-        <button 
-          onClick={() => setActiveGlobalTab("wards")} 
+        <button
+          onClick={() => setActiveGlobalTab("wards")}
           className={`px-4 py-4 text-xs font-extrabold uppercase tracking-widest transition-colors border-b-2 shadow-none ${activeGlobalTab === "wards" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-900"}`}
         >
           Hospital Wards Directory
         </button>
-        <button 
-          onClick={() => setActiveGlobalTab("analytics")} 
+        <button
+          onClick={() => setActiveGlobalTab("analytics")}
           className={`px-4 py-4 text-xs font-extrabold uppercase tracking-widest transition-colors border-b-2 shadow-none ${activeGlobalTab === "analytics" ? "border-gray-900 text-gray-900" : "border-transparent text-gray-400 hover:text-gray-900"}`}
         >
           Predictive Data Analytics
@@ -166,59 +192,59 @@ const AdminDashboard = () => {
           <div className="pt-8 animate-in fade-in duration-500">
             <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-widest mb-6">Real-Time Data Analytics</h3>
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-8 items-start">
-                
-                {/* Occupancy Trend Chart */}
-                <div className="bg-white border border-gray-200 p-8 rounded-xl shadow-sm">
-                    <div className="mb-6">
-                       <h4 className="text-xs font-extrabold text-gray-900 uppercase tracking-widest">24-Hour Occupancy Trend</h4>
-                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Percentage Utilization by Ward</p>
-                    </div>
-                    <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <AreaChart data={occupancyTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                            <defs>
-                              <linearGradient id="colorGen" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#1e3a8a" stopOpacity={0.8}/>
-                                <stop offset="95%" stopColor="#1e3a8a" stopOpacity={0}/>
-                              </linearGradient>
-                              <linearGradient id="colorICU" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8}/>
-                                <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
-                              </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                            <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9ca3af' }} dy={10} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9ca3af' }} />
-                            <RechartsTooltip content={<ChartTooltip />} />
-                            <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }} />
-                            <Area type="monotone" dataKey="General" stroke="#1e3a8a" strokeWidth={3} fillOpacity={1} fill="url(#colorGen)" />
-                            <Area type="monotone" dataKey="ICU" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorICU)" />
-                            <Area type="monotone" dataKey="Premium" stroke="#9ca3af" strokeWidth={3} fillOpacity={0.3} fill="#9ca3af" />
-                          </AreaChart>
-                        </ResponsiveContainer>
-                    </div>
-                </div>
 
-                {/* Velocity Flow Chart */}
-                <div className="bg-white border border-gray-200 p-8 rounded-xl shadow-sm">
-                    <div className="mb-6">
-                       <h4 className="text-xs font-extrabold text-gray-900 uppercase tracking-widest">Patient Flow Velocity</h4>
-                       <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">7-Day Admissions vs Discharges</p>
-                    </div>
-                    <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart data={patientFlowData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
-                            <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9ca3af' }} dy={10} />
-                            <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9ca3af' }} />
-                            <RechartsTooltip content={<ChartTooltip />} />
-                            <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }} />
-                            <Bar dataKey="Admissions" fill="#1e3a8a" radius={[4, 4, 0, 0]} barSize={20} />
-                            <Bar dataKey="Discharges" fill="#d1d5db" radius={[4, 4, 0, 0]} barSize={20} />
-                          </BarChart>
-                        </ResponsiveContainer>
-                    </div>
+              {/* Occupancy Trend Chart */}
+              <div className="bg-white border border-gray-200 p-8 rounded-xl shadow-sm">
+                <div className="mb-6">
+                  <h4 className="text-xs font-extrabold text-gray-900 uppercase tracking-widest">24-Hour Occupancy Trend</h4>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">Percentage Utilization by Ward</p>
                 </div>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={occupancyTrendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorGen" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#1e3a8a" stopOpacity={0.8} />
+                          <stop offset="95%" stopColor="#1e3a8a" stopOpacity={0} />
+                        </linearGradient>
+                        <linearGradient id="colorICU" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.8} />
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                      <XAxis dataKey="time" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9ca3af' }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9ca3af' }} />
+                      <RechartsTooltip content={<ChartTooltip />} />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }} />
+                      <Area type="monotone" dataKey="General" stroke="#1e3a8a" strokeWidth={3} fillOpacity={1} fill="url(#colorGen)" />
+                      <Area type="monotone" dataKey="ICU" stroke="#3b82f6" strokeWidth={3} fillOpacity={1} fill="url(#colorICU)" />
+                      <Area type="monotone" dataKey="Premium" stroke="#9ca3af" strokeWidth={3} fillOpacity={0.3} fill="#9ca3af" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Velocity Flow Chart */}
+              <div className="bg-white border border-gray-200 p-8 rounded-xl shadow-sm">
+                <div className="mb-6">
+                  <h4 className="text-xs font-extrabold text-gray-900 uppercase tracking-widest">Patient Flow Velocity</h4>
+                  <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">7-Day Admissions vs Discharges</p>
+                </div>
+                <div className="h-[300px] w-full">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={patientFlowData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f3f4f6" />
+                      <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9ca3af' }} dy={10} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700, fill: '#9ca3af' }} />
+                      <RechartsTooltip content={<ChartTooltip />} />
+                      <Legend iconType="circle" wrapperStyle={{ fontSize: '10px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.05em' }} />
+                      <Bar dataKey="Admissions" fill="#1e3a8a" radius={[4, 4, 0, 0]} barSize={20} />
+                      <Bar dataKey="Discharges" fill="#d1d5db" radius={[4, 4, 0, 0]} barSize={20} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
 
             </div>
           </div>
@@ -229,9 +255,9 @@ const AdminDashboard = () => {
           <div className="pt-8 animate-in fade-in duration-500">
             <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-widest mb-6">Ward Distribution Overviews</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-                {wards.map(wardName => (
-                   <AdminWardCard key={wardName} name={wardName} beds={beds.filter(b => b.ward === wardName)} onDrillDown={handleDrillDown} />
-                ))}
+              {wards.map(wardName => (
+                <AdminWardCard key={wardName} name={wardName} beds={beds.filter(b => b.ward === wardName)} onDrillDown={handleDrillDown} />
+              ))}
             </div>
           </div>
         )}
@@ -249,9 +275,9 @@ const AdminDashboard = () => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-gray-200 pb-6">
           <div>
             <div className="flex items-center gap-3 mb-2">
-                <Button variant="ghost" onClick={handleBackToGlobal} className="px-0 text-blue-900 hover:bg-transparent shadow-none text-[10px] font-extrabold uppercase tracking-widest underline decoration-2 underline-offset-4">
-                  &lt; Back to Hospital Center
-                </Button>
+              <Button variant="ghost" onClick={handleBackToGlobal} className="px-0 text-blue-900 hover:bg-transparent shadow-none text-[10px] font-extrabold uppercase tracking-widest underline decoration-2 underline-offset-4">
+                &lt; Back to Hospital Center
+              </Button>
             </div>
             <h2 className="text-3xl font-extrabold tracking-tight text-gray-900 uppercase">{drilledWard} OVERVIEW</h2>
             <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-2 flex items-center gap-4">
@@ -278,15 +304,15 @@ const AdminDashboard = () => {
               <span className="flex items-center gap-2"><span className="w-4 h-4 rounded-sm bg-white border-2 border-gray-200"></span> AVAILABLE</span>
             </div>
           </div>
-          
+
           <div className="p-5 md:p-8 bg-white">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 3xl:grid-cols-6 gap-4 sm:gap-6">
               {drilledBeds.map((bed) => (
                 <div key={bed.id} className="relative group">
-                   <BedCard bed={bed} onClick={handleBedClick} />
-                   <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                     <span className="bg-gray-900 border border-black text-white text-[8px] px-2 py-1 rounded font-extrabold tracking-widest uppercase shadow-xl truncate">Audit View</span>
-                   </div>
+                  <BedCard bed={bed} onClick={handleBedClick} />
+                  <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                    <span className="bg-gray-900 border border-black text-white text-[8px] px-2 py-1 rounded font-extrabold tracking-widest uppercase shadow-xl truncate">Audit View</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -301,14 +327,15 @@ const AdminDashboard = () => {
       {drilledWard ? renderDrilledView() : renderGlobalView()}
 
       {selectedBed && (
+
         <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`CLINICAL AUDIT: BED ${selectedBed.bedNumber}`}>
           <div className="space-y-8">
             <div className="bg-gray-50/70 p-8 rounded-lg border-2 border-dashed border-gray-200 shadow-inner">
               <div className="flex items-center justify-between mb-4">
-                 <h4 className="text-[11px] font-extrabold text-blue-900 uppercase tracking-widest">Administrative Read-Only Profile</h4>
-                 <span className="text-[9px] font-bold text-gray-400 bg-gray-200 px-2 py-1 rounded uppercase tracking-widest">Audit System</span>
+                <h4 className="text-[11px] font-extrabold text-blue-900 uppercase tracking-widest">Administrative Read-Only Profile</h4>
+                <span className="text-[9px] font-bold text-gray-400 bg-gray-200 px-2 py-1 rounded uppercase tracking-widest">Audit System</span>
               </div>
-              
+
               {selectedBed.status === 'occupied' && selectedBed.patient ? (
                 <>
                   <h4 className="font-extrabold text-3xl text-gray-900 tracking-tight mt-6">{selectedBed.patient.name}</h4>
@@ -327,29 +354,96 @@ const AdminDashboard = () => {
                         <p className="text-sm font-bold text-gray-900 mt-1">{selectedBed.patient.admitDate}</p>
                       </div>
                       <div className="text-right">
-                         <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Status Override</p>
-                         <p className="text-xs font-extrabold text-red-600 uppercase tracking-widest mt-1 flex items-center gap-1 justify-end">LOCKED</p>
+                        <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Status Override</p>
+                        <p className="text-xs font-extrabold text-red-600 uppercase tracking-widest mt-1 flex items-center gap-1 justify-end">LOCKED</p>
                       </div>
                     </div>
                   </div>
                 </>
               ) : (
                 <div className="py-12 text-center flex flex-col items-center justify-center">
-                   <p className="text-2xl font-extrabold text-gray-900 uppercase tracking-widest">{selectedBed.status}</p>
-                   <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-3">No Active Profile Linkage</p>
+                  <p className="text-2xl font-extrabold text-gray-900 uppercase tracking-widest">{selectedBed.status}</p>
+                  <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-3">No Active Profile Linkage</p>
                 </div>
               )}
             </div>
-            
+
             <div className="bg-white p-5 text-center rounded border border-gray-200 shadow-sm">
-                <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest leading-relaxed">
-                  Status modifications are restricted for administrative accounts.<br/>
-                  Please contact the specialized Ward In-Charge for active adjustments.
-                </p>
+              <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest leading-relaxed">
+                Status modifications are restricted for administrative accounts.<br />
+                Please contact the specialized Ward In-Charge for active adjustments.
+              </p>
             </div>
           </div>
         </Modal>
       )}
+      <Modal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        title="ADD MEMBER"
+      >
+        <div className="space-y-4">
+
+          {/* First + Last */}
+          <div className="flex gap-2">
+            <input
+              name="firstName"
+              placeholder="First Name"
+              value={memberForm.firstName}
+              onChange={handleMemberChange}
+              className="w-1/2 border p-2 rounded-lg"
+            />
+            <input
+              name="lastName"
+              placeholder="Last Name"
+              value={memberForm.lastName}
+              onChange={handleMemberChange}
+              className="w-1/2 border p-2 rounded-lg"
+            />
+          </div>
+
+          {/* Email */}
+          <input
+            name="email"
+            placeholder="Email"
+            value={memberForm.email}
+            onChange={handleMemberChange}
+            className="w-full border p-2 rounded-lg"
+          />
+
+          {/* Password */}
+          <input
+            type="password"
+            name="password"
+            placeholder="Password"
+            value={memberForm.password}
+            onChange={handleMemberChange}
+            className="w-full border p-2 rounded-lg"
+          />
+
+          {/* Role */}
+          <select
+            name="role"
+            value={memberForm.role}
+            onChange={handleMemberChange}
+            className="w-full border p-2 rounded-lg"
+          >
+            <option value="staff">Staff</option>
+            <option value="doctor">Doctor</option>
+          </select>
+
+          {/* Buttons */}
+          <div className="flex justify-end gap-2 mt-4">
+            <Button variant="ghost" onClick={() => setIsAddModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleAddMember}>
+              Add Member
+            </Button>
+          </div>
+
+        </div>
+      </Modal>
     </div>
   );
 };
