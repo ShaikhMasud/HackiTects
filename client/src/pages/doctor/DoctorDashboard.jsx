@@ -7,18 +7,28 @@ import Modal from "../../components/Modal";
 import Button from "../../components/Button";
 import PatientClinicalTable from "../../components/PatientClinicalTable";
 
+const doctorsList = [
+  { id: 'D1', name: 'Dr. Smith', specialty: 'General Medicine' },
+  { id: 'D2', name: 'Dr. Jones', specialty: 'Cardiology' },
+  { id: 'D3', name: 'Dr. Patel', specialty: 'Orthopedics' },
+  { id: 'D4', name: 'Dr. Williams', specialty: 'Pulmonology' },
+];
+
 const initialPatients = [
   { id: 'P001', name: 'Rahul Sharma', bed: 'G12', age: 45, gender: 'M', condition: 'Acute Appendicitis', admissionDate: '2026-03-24', status: 'admitted', vitals: { bp: '120/80', hr: 75, temp: '98.6°F' }, meds: ['Ceftriaxone 1g IV bid', 'Paracetamol 500mg prn'], doctor: "Dr. Smith" },
   { id: 'P002', name: 'Priya Singh', bed: 'G07', age: 38, gender: 'F', condition: 'Dengue Fever', admissionDate: '2026-03-20', status: 'pending_clearance', vitals: { bp: '110/70', hr: 88, temp: '99.1°F' }, meds: ['IV Fluids 1L/8h', 'PCM 650mg'], doctor: "Dr. Smith" },
-  { id: 'P003', name: 'Amit Patel', bed: 'I03', age: 62, gender: 'M', condition: 'Post-CABG Observation', admissionDate: '2026-03-25', status: 'critical', vitals: { bp: '135/85', hr: 92, temp: '98.8°F' }, meds: ['Aspirin 75mg', 'Atorvastatin 40mg', 'Metoprolol 25mg'], doctor: "Dr. Smith" },
+  { id: 'P003', name: 'Amit Patel', bed: 'I03', age: 62, gender: 'M', condition: 'Post-CABG Observation', admissionDate: '2026-03-25', status: 'critical', vitals: { bp: '135/85', hr: 92, temp: '98.8°F' }, meds: ['Aspirin 75mg', 'Atorvastatin 40mg', 'Metoprolol 25mg'], doctor: "Dr. Jones" },
   { id: 'P004', name: 'Neha Gupta', bed: 'G22', age: 29, gender: 'F', condition: 'Viral Gastroenteritis', admissionDate: '2026-03-26', status: 'admitted', vitals: { bp: '100/60', hr: 95, temp: '100.2°F' }, meds: ['Ondansetron 4mg bd', 'ORS'], doctor: "Dr. Smith" },
-  { id: 'P005', name: 'Vikram Mehta', bed: 'P14', age: 55, gender: 'M', condition: 'Elective Hernia Repair', admissionDate: '2026-03-27', status: 'cleared_for_discharge', vitals: { bp: '125/82', hr: 70, temp: '98.4°F' }, meds: ['Ibuprofen 400mg'], doctor: "Dr. Smith" },
-  { id: 'P006', name: 'Suresh Kumar', bed: 'I09', age: 68, gender: 'M', condition: 'COPD Exacerbation', admissionDate: '2026-03-22', status: 'admitted', vitals: { bp: '145/90', hr: 102, temp: '99.5°F' }, meds: ['Salbutamol NEBs', 'Hydrocortisone 100mg IV'], doctor: "Dr. Smith" }
+  { id: 'P005', name: 'Vikram Mehta', bed: 'P14', age: 55, gender: 'M', condition: 'Elective Hernia Repair', admissionDate: '2026-03-27', status: 'cleared_for_discharge', vitals: { bp: '125/82', hr: 70, temp: '98.4°F' }, meds: ['Ibuprofen 400mg'], doctor: "Dr. Patel" },
+  { id: 'P006', name: 'Suresh Kumar', bed: 'I09', age: 68, gender: 'M', condition: 'COPD Exacerbation', admissionDate: '2026-03-22', status: 'admitted', vitals: { bp: '145/90', hr: 102, temp: '99.5°F' }, meds: ['Salbutamol NEBs', 'Hydrocortisone 100mg IV'], doctor: "Dr. Williams" },
+  { id: 'P007', name: 'Arjun Das', bed: 'I01', age: 72, gender: 'M', condition: 'Myocardial Infarction', admissionDate: '2026-03-25', status: 'critical', vitals: { bp: '140/90', hr: 105, temp: '99.0°F' }, meds: ['Heparin', 'Aspirin'], doctor: "Dr. Jones" },
 ];
 
 const DoctorDashboard = () => {
   const [patients, setPatients] = useState([]);
+  const [activeDoctor, setActiveDoctor] = useState(doctorsList[0]);
   const [selectedPatient, setSelectedPatient] = useState(null);
+  const [reportData, setReportData] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHandoverOpen, setIsHandoverOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -32,11 +42,13 @@ const DoctorDashboard = () => {
     }, 500);
   }, []);
 
-  const pendingClearancesCount = patients.filter(p => p.status === 'pending_clearance').length;
-  const criticalCount = patients.filter(p => p.status === 'critical').length;
+  const filteredPatients = patients.filter(p => p.doctor === activeDoctor.name);
+
+  const pendingClearancesCount = filteredPatients.filter(p => p.status === 'pending_clearance').length;
+  const criticalCount = filteredPatients.filter(p => p.status === 'critical').length;
 
   const statsData = [
-    { label: "My Active Patients", value: patients.length, subtext: "Total Clinical Load" },
+    { label: "My Active Patients", value: filteredPatients.length, subtext: "Total Clinical Load" },
     { label: "Pending Approvals", value: pendingClearancesCount, subtext: "Awaiting Discharge Review" },
     { label: "Critical Monitoring", value: criticalCount, subtext: "ICU & High Priority" },
   ];
@@ -61,7 +73,7 @@ const DoctorDashboard = () => {
     contentRef: handoverPrintRef,
     // fallback for v2:
     content: () => handoverPrintRef.current,
-    documentTitle: `Shift_Handover_Dr_Smith_${new Date().toISOString().split('T')[0]}`,
+    documentTitle: `Shift_Handover_${activeDoctor.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`,
   });
 
   const handleShareLink = () => {
@@ -93,9 +105,15 @@ const DoctorDashboard = () => {
            >
              Generate Shift Handover
            </Button>
-           <div className="px-6 py-3 text-xs font-extrabold uppercase tracking-widest rounded bg-gray-100 border border-gray-200 text-gray-900 shadow-sm flex items-center gap-2">
-             <div className="w-2 h-2 rounded-full bg-gradient-to-r from-blue-950 to-blue-900"></div> Dr. Smith
-           </div>
+           <select 
+             value={activeDoctor.id}
+             onChange={(e) => setActiveDoctor(doctorsList.find(d => d.id === e.target.value))}
+             className="px-4 py-3 text-xs font-extrabold uppercase tracking-widest rounded bg-gray-100 border border-gray-200 text-gray-900 shadow-sm flex items-center gap-2 focus:ring-0 outline-none cursor-pointer"
+           >
+             {doctorsList.map(doc => (
+               <option key={doc.id} value={doc.id}>{doc.name} - {doc.specialty}</option>
+             ))}
+           </select>
         </div>
       </div>
 
@@ -108,7 +126,7 @@ const DoctorDashboard = () => {
 
       {/* Patient Clinical Table */}
       <div className="w-full">
-        <PatientClinicalTable patients={patients} onReview={handleReview} />
+        <PatientClinicalTable patients={filteredPatients} onReview={handleReview} onReport={(patient, type) => setReportData({ patient, type })} />
       </div>
 
       {/* Complete Chart Review Modal */}
@@ -176,6 +194,67 @@ const DoctorDashboard = () => {
         </Modal>
       )}
 
+      {/* Patient Report Modal */}
+      {reportData && (
+        <Modal isOpen={!!reportData} onClose={() => setReportData(null)} title={reportData.type === 'discharge' ? `DISCHARGE SUMMARY: ${reportData.patient.name}` : `CLINICAL HISTORY: ${reportData.patient.name}`}>
+          <div className="space-y-6">
+             <div className="bg-gray-50 border border-gray-200 p-6 rounded relative">
+                <div className="flex justify-between items-start mb-6 border-b border-gray-200 pb-4">
+                   <div>
+                     <h3 className="text-xl font-extrabold text-gray-900 uppercase tracking-tight">{reportData.patient.name}</h3>
+                     <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-1">ID: {reportData.patient.id} • Bed: {reportData.patient.bed}</p>
+                   </div>
+                   <div className="text-right">
+                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Generated</p>
+                     <p className="text-sm font-black text-gray-900">{new Date().toLocaleDateString()}</p>
+                   </div>
+                </div>
+
+                <div className="space-y-4">
+                   <div>
+                      <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1">Primary Diagnosis</p>
+                      <p className="text-sm font-bold text-gray-900">{reportData.patient.condition}</p>
+                   </div>
+                   <div className="grid grid-cols-2 gap-4">
+                     <div>
+                        <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1">Latest Vitals</p>
+                        <p className="text-xs font-bold text-gray-900 uppercase tracking-wide">BP: {reportData.patient.vitals.bp} | HR: {reportData.patient.vitals.hr} | T: {reportData.patient.vitals.temp}</p>
+                     </div>
+                     <div>
+                        <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1">Attending</p>
+                        <p className="text-xs font-bold text-gray-900 uppercase tracking-wide">{reportData.patient.doctor}</p>
+                     </div>
+                   </div>
+                   <div>
+                      <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1">Active Medications / Treatment Plan</p>
+                      <ul className="flex flex-col gap-1 mt-1">
+                        {reportData.patient.meds.map((m, i) => <li key={i} className="text-xs font-bold text-gray-800 flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-gray-900 rounded-sm"></div> {m}</li>)}
+                      </ul>
+                   </div>
+                   {reportData.type === 'discharge' && (
+                     <div className="mt-6 pt-4 border-t border-gray-200">
+                        <p className="text-[10px] font-extrabold text-gray-900 uppercase tracking-widest mb-2">Discharge Instructions</p>
+                        <p className="text-xs font-bold text-gray-600 leading-relaxed max-w-lg">Patient advised to maintain adequate rest. Follow up in the Outpatient Department (OPD) after 7 days. Continue all prescribed daily medications strictly as directed. In case of unexpected emergency or onset of new acute symptoms, report immediately to the facility.</p>
+                     </div>
+                   )}
+                </div>
+             </div>
+             
+             <div className="flex justify-end pt-2">
+                <Button 
+                   onClick={() => { 
+                      toast.success(`${reportData.type === 'discharge' ? 'Discharge Summary' : 'Clinical Report'} sent to printer queue.`); 
+                      setReportData(null); 
+                   }} 
+                   className="px-6 py-3 bg-gray-900 hover:bg-black text-white text-[10px] font-extrabold uppercase tracking-widest shadow-none border-none"
+                >
+                   Print Document
+                </Button>
+             </div>
+          </div>
+        </Modal>
+      )}
+
       {/* Shift Handover Report Modal */}
       <Modal isOpen={isHandoverOpen} onClose={() => setIsHandoverOpen(false)} title="SHIFT HANDOVER & REPORTING STATUS">
         <div className="space-y-6 relative">
@@ -209,35 +288,47 @@ const DoctorDashboard = () => {
                  <div className="grid grid-cols-2 gap-6 bg-gray-50 p-6 border-l-4 border-blue-900 mb-8 rounded-r">
                     <div>
                       <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Attending Shift Lead</p>
-                      <p className="text-base font-extrabold text-gray-900">Dr. Smith</p>
+                      <p className="text-base font-extrabold text-gray-900">{activeDoctor.name} ({activeDoctor.specialty})</p>
                     </div>
                     <div>
                       <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Active Roster</p>
-                      <p className="text-base font-extrabold text-gray-900">{patients.length} INDIVIDUALS</p>
+                      <p className="text-base font-extrabold text-gray-900">{filteredPatients.length} INDIVIDUALS</p>
                     </div>
+                 </div>
+
+                 {/* LOS Outliers Flagged Section (Problem Statement addition!) */}
+                 <div className="mb-8">
+                   <h3 className="text-[10px] font-black text-white bg-red-600 px-3 py-1.5 uppercase tracking-widest rounded-sm mb-4 inline-block">Length-of-Stay Outlier Flags</h3>
+                   {filteredPatients.filter(p => new Date() - new Date(p.admissionDate) > 5 * 86400000).map(p => (
+                       <div key={p.id} className="mb-3 pl-4 border-l-2 border-orange-500">
+                          <p className="text-sm font-extrabold text-gray-900 uppercase tracking-wide">{p.name} — Bed {p.bed}</p>
+                          <p className="text-[10px] font-bold text-gray-600 mt-1 uppercase tracking-widest">Exceeds typical LOS for: {p.condition}. Please review clinical necessity.</p>
+                       </div>
+                   ))}
+                   {filteredPatients.filter(p => new Date() - new Date(p.admissionDate) > 5 * 86400000).length === 0 && <p className="text-xs font-bold text-gray-400 italic">No prolonged stay outliers detected.</p>}
                  </div>
 
                  <div className="mb-8">
                    <h3 className="text-[10px] font-black text-gray-900 uppercase tracking-widest border-b border-gray-200 pb-2 mb-4">Urgent Flagged Patients (Critical / Observation)</h3>
-                   {patients.filter(p => p.status === 'critical').map(p => (
+                   {filteredPatients.filter(p => p.status === 'critical').map(p => (
                        <div key={p.id} className="mb-3 pl-4 border-l-2 border-red-500">
                           <p className="text-sm font-extrabold text-gray-900 uppercase tracking-wide">{p.name} — Bed {p.bed}</p>
                           <p className="text-[10px] font-bold text-gray-600 mt-1 uppercase tracking-widest">Diagnosis: {p.condition}</p>
                           <p className="text-[10px] font-bold text-red-600 mt-0.5 uppercase tracking-widest">Latest Vitals: BP {p.vitals.bp} • HR {p.vitals.hr}</p>
                        </div>
                    ))}
-                   {patients.filter(p => p.status === 'critical').length === 0 && <p className="text-xs font-bold text-gray-400 italic">No critically flagged patients on this roster.</p>}
+                   {filteredPatients.filter(p => p.status === 'critical').length === 0 && <p className="text-xs font-bold text-gray-400 italic">No critically flagged patients on this roster.</p>}
                  </div>
 
                  <div className="mb-8">
                    <h3 className="text-[10px] font-black text-gray-900 uppercase tracking-widest border-b border-gray-200 pb-2 mb-4">Pending Medical Discharges</h3>
-                   {patients.filter(p => p.status === 'pending_clearance').map(p => (
+                   {filteredPatients.filter(p => p.status === 'pending_clearance').map(p => (
                        <div key={p.id} className="mb-3 pl-4 border-l-2 border-yellow-400">
                           <p className="text-sm font-extrabold text-gray-900 uppercase tracking-wide">{p.name} — Bed {p.bed}</p>
                           <p className="text-[10px] font-bold text-gray-600 mt-1 uppercase tracking-widest">Requirements: Final Vitals Review prior to Exit</p>
                        </div>
                    ))}
-                   {patients.filter(p => p.status === 'pending_clearance').length === 0 && <p className="text-xs font-bold text-gray-400 italic">No patients pending physician clearance.</p>}
+                   {filteredPatients.filter(p => p.status === 'pending_clearance').length === 0 && <p className="text-xs font-bold text-gray-400 italic">No patients pending physician clearance.</p>}
                  </div>
 
                  <div className="mb-4">
@@ -251,7 +342,7 @@ const DoctorDashboard = () => {
                        </tr>
                      </thead>
                      <tbody>
-                       {patients.filter(p => p.status !== 'critical' && p.status !== 'pending_clearance').map(p => (
+                       {filteredPatients.filter(p => p.status !== 'critical' && p.status !== 'pending_clearance').map(p => (
                          <tr key={p.id} className="border-t border-gray-50">
                            <td className="py-2 text-xs font-bold text-gray-900">{p.name}</td>
                            <td className="py-2 text-xs font-bold text-gray-600 uppercase">{p.bed}</td>

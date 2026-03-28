@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { toast } from "react-toastify";
 import BedCard from "../../components/BedCard";
 import Modal from "../../components/Modal";
 import Button from "../../components/Button";
@@ -34,6 +35,8 @@ const StaffDashboard = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [activeWard, setActiveWard] = useState("General Ward");
   const [selectedAdmissionId, setSelectedAdmissionId] = useState("");
+  const [transferWardId, setTransferWardId] = useState("");
+  const [transferBedId, setTransferBedId] = useState("");
   
   const [isAdmissionModalOpen, setIsAdmissionModalOpen] = useState(false);
   const [admissionForm, setAdmissionForm] = useState({
@@ -41,13 +44,24 @@ const StaffDashboard = () => {
     wardId: "General Ward",
     priority: "Routine",
     doctorId: "D-101",
+    bedId: "",
   });
 
   const handleAdmissionChange = (e) => {
-    setAdmissionForm({ ...admissionForm, [e.target.name]: e.target.value });
+    // If ward changes, reset bed selection since beds are ward-specific
+    if (e.target.name === "wardId") {
+       setAdmissionForm({ ...admissionForm, wardId: e.target.value, bedId: "" });
+    } else {
+       setAdmissionForm({ ...admissionForm, [e.target.name]: e.target.value });
+    }
   };
 
   const submitAdmission = () => {
+    if (!admissionForm.patientName.trim()) {
+       toast.error("Please enter a patient name.");
+       return;
+    }
+
     const newAdmission = {
       id: Math.floor(Math.random() * 10000),
       patientName: admissionForm.patientName,
@@ -56,8 +70,32 @@ const StaffDashboard = () => {
       targetWard: admissionForm.wardId,
       status: "waiting",
     };
-    setAdmissions((prev) => [newAdmission, ...prev]);
-    setAdmissionForm({ patientName: "", wardId: "General Ward", priority: "Routine", doctorId: "D-101" });
+
+    if (admissionForm.bedId) {
+      // Direct bed assignment bypasses the pending queue
+      const doctorMeta = admissionForm.doctorId === "D-101" ? "Dr. Smith" : admissionForm.doctorId === "D-102" ? "Dr. Jones" : "Assigned Doctor";
+      
+      setBeds(prev => prev.map(bed => 
+         bed.bedNumber === admissionForm.bedId 
+            ? { 
+                ...bed, 
+                status: "occupied", 
+                patient: { 
+                  name: newAdmission.patientName, 
+                  condition: "Direct Admission", 
+                  doctor: doctorMeta, 
+                  admitDate: new Date().toISOString().split('T')[0] 
+                } 
+              } 
+            : bed
+      ));
+      toast.success(`Direct Admission: ${newAdmission.patientName} assigned to Bed ${admissionForm.bedId}`);
+    } else {
+      setAdmissions((prev) => [newAdmission, ...prev]);
+      toast.success(`Admission scheduled for ${newAdmission.patientName}`);
+    }
+
+    setAdmissionForm({ patientName: "", wardId: "General Ward", priority: "Routine", doctorId: "D-101", bedId: "" });
     setIsAdmissionModalOpen(false);
   };
 
@@ -106,7 +144,16 @@ const StaffDashboard = () => {
   const occupiedCount = currentWardBeds.filter(b => b.status === "occupied").length;
   const availableCount = currentWardBeds.filter(b => b.status === "available").length;
   const cleaningCount = currentWardBeds.filter(b => b.status === "cleaning").length;
+
+  const currentDischarges = discharges.filter(d => currentWardBeds.some(b => b.bedNumber === d.bedId || d.bedId === null));
+  const pendingAdmissionsTargettingWard = admissions.filter(a => a.targetWard === activeWard && (a.status === 'waiting' || a.status === 'arrived')).length;
+
+  const dischargesNext4h = currentDischarges.filter(d => d.status === 'pending' && new Date(d.expectedTime) <= new Date(Date.now() + 4 * 3600000)).length;
+  const dischargesNext8h = currentDischarges.filter(d => d.status === 'pending' && new Date(d.expectedTime) <= new Date(Date.now() + 8 * 3600000)).length;
+
   const activeOccupancy = Math.round((occupiedCount / (currentWardBeds.length || 1)) * 100) || 0;
+  const occupancy4h = Math.round(((occupiedCount - dischargesNext4h + pendingAdmissionsTargettingWard) / (currentWardBeds.length || 1)) * 100) || 0;
+  const occupancy8h = Math.round(((occupiedCount - dischargesNext8h + pendingAdmissionsTargettingWard) / (currentWardBeds.length || 1)) * 100) || 0;
 
   const now = new Date();
   const time4h = new Date(now.getTime() + 4 * 60 * 60 * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -114,12 +161,28 @@ const StaffDashboard = () => {
 
   const statsData = [
     { label: "Current Occupancy", value: `${activeOccupancy}%`, subtext: `${occupiedCount} of ${currentWardBeds.length} Beds` },
-    { label: "4-Hour Forecast", value: `${Math.min(activeOccupancy + 15, 100)}%`, subtext: `By ${time4h}` },
-    { label: "8-Hour Forecast", value: `${Math.min(activeOccupancy + 5, 100)}%`, subtext: `By ${time8h}` },
+    { label: "4-Hour Forecast", value: `${Math.min(Math.max(occupancy4h, 0), 100)}%`, subtext: `By ${time4h}` },
+    { label: "8-Hour Forecast", value: `${Math.min(Math.max(occupancy8h, 0), 100)}%`, subtext: `By ${time8h}` },
   ];
+
+  // Dynamic Escalations
+  const dynamicEscalations = [];
+  if (occupancy4h > 90) {
+    dynamicEscalations.push({ id: `cap-${activeWard}`, type: "critical", message: `${activeWard} projected to exceed 90% capacity within 4 hours.`, time: new Date().toISOString() });
+  }
+  currentWardBeds.filter(b => b.status === "cleaning").slice(0, 1).forEach(b => {
+    // Flag the first cleaning bed as an example delay
+    dynamicEscalations.push({ id: `c-${b.id}`, type: "warning", message: `Bed ${b.bedNumber} has been in 'Cleaning' status for over 30 minutes.`, time: new Date(Date.now() - 35 * 60000).toISOString() });
+  });
+  currentDischarges.filter(d => d.status === "pending" && new Date(d.expectedTime).getTime() < (Date.now() - 2 * 3600000)).forEach(d => {
+    dynamicEscalations.push({ id: `d-${d.id}`, type: "critical", message: `Patient ${d.patientName} marked for discharge >2 hours ago and hasn't left.`, time: new Date(d.expectedTime).toISOString() });
+  });
 
   const handleBedClick = (bed) => {
     setSelectedBed(bed);
+    setSelectedAdmissionId("");
+    setTransferWardId(bed.ward);
+    setTransferBedId("");
     setIsModalOpen(true);
   };
 
@@ -130,6 +193,7 @@ const StaffDashboard = () => {
         : bed
     ));
     setIsModalOpen(false);
+    toast.success(`Bed ${selectedBed.bedNumber} updated to ${newStatus}`);
   };
 
   const handleDischarge = () => {
@@ -140,6 +204,24 @@ const StaffDashboard = () => {
      ));
      setDischarges(prev => prev.map(d => d.bedId === selectedBed.bedNumber ? { ...d, status: 'completed' } : d));
      setIsModalOpen(false);
+     toast.info(`Bed ${selectedBed.bedNumber} is now cleaning. Patient discharged.`);
+  };
+
+  const handleTransfer = () => {
+     if (!transferBedId) return;
+
+     setBeds(prev => prev.map(bed => {
+       if (bed.id === selectedBed.id) {
+         return { ...bed, status: "cleaning", patient: null };
+       }
+       if (bed.bedNumber === transferBedId) {
+         return { ...bed, status: "occupied", patient: selectedBed.patient };
+       }
+       return bed;
+     }));
+
+     setIsModalOpen(false);
+     toast.success(`Patient successfully transferred to Bed ${transferBedId}. Original bed marked for cleaning.`);
   };
 
   const handleAssignAdmission = (admitId) => {
@@ -164,6 +246,7 @@ const StaffDashboard = () => {
      setAdmissions(prev => prev.filter(a => a.id.toString() !== admitId.toString()));
      setSelectedAdmissionId("");
      setIsModalOpen(false);
+     toast.success(`${admin.patientName} assigned to Bed ${selectedBed.bedNumber}`);
   };
 
   if (loading) {
@@ -211,7 +294,7 @@ const StaffDashboard = () => {
       </div>
 
       {/* Escalation Flags - Full Width */}
-      <EscalationFlagsAlert escalations={escalations} />
+      <EscalationFlagsAlert escalations={dynamicEscalations.length > 0 ? dynamicEscalations : escalations} />
 
       {/* Main Full-Width Bed Map Component */}
       <div className="w-full bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col shadow-sm">
@@ -280,6 +363,46 @@ const StaffDashboard = () => {
                      Discharge Patient & Clean Bed
                   </Button>
                 </div>
+              </div>
+            )}
+
+            {selectedBed.status === 'occupied' && selectedBed.patient && (
+              <div className="bg-white p-5 rounded-lg border-2 border-gray-200 mb-4">
+                 <p className="text-xs font-bold text-gray-900 uppercase tracking-widest mb-4">Transfer Patient</p>
+                 <div className="grid grid-cols-2 gap-4 mb-4">
+                   <div>
+                     <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1 block">Target Ward</label>
+                     <select 
+                         className="w-full pl-3 pr-8 py-2.5 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-sm font-bold text-gray-900 bg-white"
+                         value={transferWardId}
+                         onChange={(e) => { setTransferWardId(e.target.value); setTransferBedId(""); }}
+                     >
+                        {["General Ward", "ICU Ward", "Premium Ward"].map(w => (
+                           <option key={w} value={w}>{w}</option>
+                        ))}
+                     </select>
+                   </div>
+                   <div>
+                     <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1 block">Destination Bed</label>
+                     <select 
+                         className="w-full pl-3 pr-8 py-2.5 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-sm font-bold text-gray-900 bg-white"
+                         value={transferBedId}
+                         onChange={(e) => setTransferBedId(e.target.value)}
+                     >
+                        <option value="">-- Select Bed --</option>
+                        {beds.filter(b => b.ward === transferWardId && ["available", "reserved"].includes(b.status) && b.id !== selectedBed.id).map(b => (
+                           <option key={b.id} value={b.bedNumber}>Bed {b.bedNumber} [{b.status.toUpperCase()}]</option>
+                        ))}
+                     </select>
+                   </div>
+                 </div>
+                 <Button 
+                    onClick={handleTransfer} 
+                    disabled={!transferBedId}
+                    className="w-full py-3.5 border-none bg-blue-900 text-white hover:bg-blue-950 text-[10px] font-extrabold uppercase tracking-widest disabled:opacity-50 transition-colors"
+                 >
+                    Execute Transfer
+                 </Button>
               </div>
             )}
 
@@ -385,22 +508,40 @@ const StaffDashboard = () => {
             </div>
           </div>
 
-          <div>
-            <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block">
-              Attending Physician
-            </label>
-            <select
-              name="doctorId"
-              value={admissionForm.doctorId}
-              onChange={handleAdmissionChange}
-              className="w-full pl-4 pr-4 py-3 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-sm font-bold text-gray-900 bg-white"
-            >
-               <option value="D-101">Dr. Smith [D-101]</option>
-               <option value="D-102">Dr. Jones [D-102]</option>
-               <option value="D-103">Dr. Patel [D-103]</option>
-               <option value="D-104">Dr. Williams [D-104]</option>
-            </select>
-          </div>
+            <div>
+              <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block">
+                Attending Physician
+              </label>
+              <select
+                name="doctorId"
+                value={admissionForm.doctorId}
+                onChange={handleAdmissionChange}
+                className="w-full pl-4 pr-4 py-3 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-sm font-bold text-gray-900 bg-white"
+              >
+                 <option value="D-101">Dr. Smith [D-101]</option>
+                 <option value="D-102">Dr. Jones [D-102]</option>
+                 <option value="D-103">Dr. Patel [D-103]</option>
+                 <option value="D-104">Dr. Williams [D-104]</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block">
+                Assign Bed (Optional)
+              </label>
+              <select
+                name="bedId"
+                value={admissionForm.bedId}
+                onChange={handleAdmissionChange}
+                className="w-full pl-4 pr-4 py-3 border-2 border-gray-200 rounded focus:ring-0 focus:border-blue-900 outline-none transition text-sm font-bold text-blue-900 bg-blue-50 border-blue-200"
+              >
+                 <option value="" className="text-gray-900 bg-white">-- Add to Pending Queue Instead --</option>
+                 {beds.filter(b => b.ward === admissionForm.wardId && ["available", "reserved"].includes(b.status)).map(b => (
+                    <option key={b.id} value={b.bedNumber} className="text-gray-900 bg-white">Bed {b.bedNumber} [{b.status.toUpperCase()}]</option>
+                 ))}
+              </select>
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mt-2 ml-1">Leave unselected to explicitly place patient on the pending queue.</p>
+            </div>
 
           {/* Buttons */}
           <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100">
