@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useReactToPrint } from "react-to-print";
 import { toast } from "react-toastify";
 import { X } from "lucide-react";
@@ -7,42 +8,68 @@ import Modal from "../../components/Modal";
 import Button from "../../components/Button";
 import PatientClinicalTable from "../../components/PatientClinicalTable";
 
-const doctorsList = [
-  { id: 'D1', name: 'Dr. Smith', specialty: 'General Medicine' },
-  { id: 'D2', name: 'Dr. Jones', specialty: 'Cardiology' },
-  { id: 'D3', name: 'Dr. Patel', specialty: 'Orthopedics' },
-  { id: 'D4', name: 'Dr. Williams', specialty: 'Pulmonology' },
-];
-
-const initialPatients = [
-  { id: 'P001', name: 'Rahul Sharma', bed: 'G12', age: 45, gender: 'M', condition: 'Acute Appendicitis', admissionDate: '2026-03-24', status: 'admitted', vitals: { bp: '120/80', hr: 75, temp: '98.6°F' }, meds: ['Ceftriaxone 1g IV bid', 'Paracetamol 500mg prn'], doctor: "Dr. Smith" },
-  { id: 'P002', name: 'Priya Singh', bed: 'G07', age: 38, gender: 'F', condition: 'Dengue Fever', admissionDate: '2026-03-20', status: 'pending_clearance', vitals: { bp: '110/70', hr: 88, temp: '99.1°F' }, meds: ['IV Fluids 1L/8h', 'PCM 650mg'], doctor: "Dr. Smith" },
-  { id: 'P003', name: 'Amit Patel', bed: 'I03', age: 62, gender: 'M', condition: 'Post-CABG Observation', admissionDate: '2026-03-25', status: 'critical', vitals: { bp: '135/85', hr: 92, temp: '98.8°F' }, meds: ['Aspirin 75mg', 'Atorvastatin 40mg', 'Metoprolol 25mg'], doctor: "Dr. Jones" },
-  { id: 'P004', name: 'Neha Gupta', bed: 'G22', age: 29, gender: 'F', condition: 'Viral Gastroenteritis', admissionDate: '2026-03-26', status: 'admitted', vitals: { bp: '100/60', hr: 95, temp: '100.2°F' }, meds: ['Ondansetron 4mg bd', 'ORS'], doctor: "Dr. Smith" },
-  { id: 'P005', name: 'Vikram Mehta', bed: 'P14', age: 55, gender: 'M', condition: 'Elective Hernia Repair', admissionDate: '2026-03-27', status: 'cleared_for_discharge', vitals: { bp: '125/82', hr: 70, temp: '98.4°F' }, meds: ['Ibuprofen 400mg'], doctor: "Dr. Patel" },
-  { id: 'P006', name: 'Suresh Kumar', bed: 'I09', age: 68, gender: 'M', condition: 'COPD Exacerbation', admissionDate: '2026-03-22', status: 'admitted', vitals: { bp: '145/90', hr: 102, temp: '99.5°F' }, meds: ['Salbutamol NEBs', 'Hydrocortisone 100mg IV'], doctor: "Dr. Williams" },
-  { id: 'P007', name: 'Arjun Das', bed: 'I01', age: 72, gender: 'M', condition: 'Myocardial Infarction', admissionDate: '2026-03-25', status: 'critical', vitals: { bp: '140/90', hr: 105, temp: '99.0°F' }, meds: ['Heparin', 'Aspirin'], doctor: "Dr. Jones" },
-];
-
 const DoctorDashboard = () => {
+  const userStr = localStorage.getItem("user");
+  const user = userStr ? JSON.parse(userStr) : {};
+  const fallbackName = user.firstName ? `Dr. ${user.firstName} ${user.lastName}` : "Attending Doctor";
   const [patients, setPatients] = useState([]);
-  const [activeDoctor, setActiveDoctor] = useState(doctorsList[0]);
+  const [activeDoctor] = useState({ name: fallbackName, specialty: "General Medicine" });
   const [selectedPatient, setSelectedPatient] = useState(null);
   const [reportData, setReportData] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHandoverOpen, setIsHandoverOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [handoverData, setHandoverData] = useState(null);
+  const [handoverLoading, setHandoverLoading] = useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [historyDocs, setHistoryDocs] = useState([]);
+  const [editingCondition, setEditingCondition] = useState(false);
+  const [tempCondition, setTempCondition] = useState("");
 
   const handoverPrintRef = useRef(null);
 
-  useEffect(() => {
-    setTimeout(() => {
-      setPatients(initialPatients);
+  const fetchPatients = async () => {
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) {
+        toast.error("Not authenticated");
+        return;
+      }
+      const res = await fetch("http://localhost:5000/api/patients/my-patients", {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      if (res.ok) {
+         const data = await res.json();
+         const mapped = data.map(p => ({
+            id: p._id,
+            name: p.patientName,
+            bed: p.bed || 'TBD',
+            age: p.age || 45,
+            gender: p.gender || 'M',
+            condition: p.primaryCondition || 'N/A',
+            admissionDate: p.admissionDate ? p.admissionDate.split('T')[0] : 'N/A',
+            status: p.status || 'admitted',
+            vitals: p.vitals || { bp: '120/80', hr: 75, temp: '98.6°F' },
+            meds: p.meds || ['Standard Care'],
+            doctor: activeDoctor.name
+         }));
+         setPatients(mapped);
+      } else {
+         toast.error("Failed to load patient roster");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Failed to connect to server");
+    } finally {
       setLoading(false);
-    }, 500);
-  }, []);
+    }
+  };
 
-  const filteredPatients = patients.filter(p => p.doctor === activeDoctor.name);
+  useEffect(() => {
+    fetchPatients();
+  }, [activeDoctor]);
+
+  const filteredPatients = patients; // Removing frontend doctor filtering as API only returns my patients
 
   const pendingClearancesCount = filteredPatients.filter(p => p.status === 'pending_clearance').length;
   const criticalCount = filteredPatients.filter(p => p.status === 'critical').length;
@@ -58,14 +85,49 @@ const DoctorDashboard = () => {
     setIsModalOpen(true);
   };
 
-  const authorizeDischarge = () => {
-    setPatients(prev => prev.map(p => p.id === selectedPatient.id ? { ...p, status: 'cleared_for_discharge' } : p));
-    setIsModalOpen(false);
+  const updatePatientStatus = async (newStatus) => {
+    try {
+       const token = localStorage.getItem("token");
+       const res = await fetch(`http://localhost:5000/api/patients/${selectedPatient.id}/status`, {
+          method: "PUT",
+          headers: {
+             "Content-Type": "application/json",
+             Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ status: newStatus })
+       });
+       if (res.ok) {
+          toast.success("Status updated!");
+          setPatients(prev => prev.map(p => p.id === selectedPatient.id ? { ...p, status: newStatus } : p));
+          setSelectedPatient(prev => ({...prev, status: newStatus}));
+       }
+    } catch (e) {
+       toast.error("Failed to update status");
+    }
   };
 
-  const updatePatientStatus = (newStatus) => {
-    setPatients(prev => prev.map(p => p.id === selectedPatient.id ? { ...p, status: newStatus } : p));
-    setSelectedPatient(prev => ({...prev, status: newStatus}));
+  const saveCondition = async () => {
+    try {
+       const token = localStorage.getItem("token");
+       const res = await fetch(`http://localhost:5000/api/patients/${selectedPatient.id}/condition`, {
+          method: "PUT",
+          headers: {
+             "Content-Type": "application/json",
+             Authorization: `Bearer ${token}`
+          },
+          body: JSON.stringify({ condition: tempCondition })
+       });
+       if(res.ok) {
+           toast.success("Primary condition successfully updated!");
+           setPatients(prev => prev.map(p => p.id === selectedPatient.id ? { ...p, condition: tempCondition } : p));
+           setSelectedPatient(prev => ({...prev, condition: tempCondition}));
+           setEditingCondition(false);
+       } else {
+           toast.error("Failed to update diagnosis");
+       }
+    } catch(e) {
+       toast.error("Network Error");
+    }
   };
 
 
@@ -77,8 +139,69 @@ const DoctorDashboard = () => {
   });
 
   const handleShareLink = () => {
-    navigator.clipboard.writeText(window.location.origin + "/shared-report/shift-dr-smith");
-    toast.success("Secure Shift Handover Link copied to your clipboard!");
+     if(handoverData?.shareId) {
+        navigator.clipboard.writeText(window.location.origin + "/shared-report/" + handoverData.shareId);
+        toast.success("Secure Shift Handover Link copied to your clipboard!");
+     } else {
+        toast.error("Generate a report first to get a share id");
+     }
+  };
+
+  const handleGenerateHandover = async () => {
+    setIsHandoverOpen(true);
+    setHandoverLoading(true);
+    try {
+      const res = await fetch(`http://localhost:5000/api/handover/all`);
+      if (res.ok) {
+         const data = await res.json();
+         setHandoverData(data); 
+      } else {
+         toast.error("Failed to generate handover report from API.");
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("Network error fetching handover.");
+    } finally {
+      setHandoverLoading(false);
+    }
+  };
+
+  const fetchHistory = async () => {
+    try {
+       const res = await fetch("http://localhost:5000/api/handover/history");
+       if(res.ok) {
+           const data = await res.json();
+           setHistoryDocs(data.history || []);
+           setIsHistoryOpen(true);
+       } else {
+           toast.error("Failed to load shift history");
+       }
+    } catch(e) {
+       console.error("Failed to parse history");
+    }
+  };
+
+  const loadHistoricalHandover = async (shareId) => {
+    setIsHistoryOpen(false);
+    setIsHandoverOpen(true);
+    setHandoverLoading(true);
+    try {
+       const res = await fetch(`http://localhost:5000/api/handover/shared/${shareId}`);
+       if(res.ok) {
+           const data = await res.json();
+           setHandoverData(data); 
+       } else {
+           toast.error("Failed to fetch shared snapshot");
+           setIsHandoverOpen(false);
+       }
+    } catch(e) { toast.error("Network Error"); } 
+    finally { setHandoverLoading(false); }
+  };
+
+  const navigate = useNavigate();
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    navigate("/");
   };
 
   if (loading) {
@@ -100,20 +223,25 @@ const DoctorDashboard = () => {
         <div className="flex space-x-4 items-center">
            <Button 
              variant="outline" 
-             onClick={() => setIsHandoverOpen(true)}
+             onClick={handleLogout}
+             className="text-xs font-extrabold uppercase tracking-widest border-2 border-gray-200 text-gray-900 px-4 py-3 shadow-none transition-colors hover:bg-red-50 hover:text-red-900 hover:border-red-200"
+           >
+             Logout
+           </Button>
+           <Button 
+             variant="outline" 
+             onClick={fetchHistory}
+             className="text-xs font-extrabold uppercase tracking-widest border-2 border-gray-200 text-gray-900 hover:bg-gray-100 px-6 py-3 shadow-none transition-colors"
+           >
+             View Past Shifts
+           </Button>
+           <Button 
+             variant="outline" 
+             onClick={handleGenerateHandover}
              className="text-xs font-extrabold uppercase tracking-widest border-2 border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white px-6 py-3 shadow-none transition-colors"
            >
-             Generate Shift Handover
+             Generate Live Handover
            </Button>
-           <select 
-             value={activeDoctor.id}
-             onChange={(e) => setActiveDoctor(doctorsList.find(d => d.id === e.target.value))}
-             className="px-4 py-3 text-xs font-extrabold uppercase tracking-widest rounded bg-gray-100 border border-gray-200 text-gray-900 shadow-sm flex items-center gap-2 focus:ring-0 outline-none cursor-pointer"
-           >
-             {doctorsList.map(doc => (
-               <option key={doc.id} value={doc.id}>{doc.name} - {doc.specialty}</option>
-             ))}
-           </select>
         </div>
       </div>
 
@@ -146,8 +274,30 @@ const DoctorDashboard = () => {
               
               <div className="grid grid-cols-2 gap-8 mt-8 pt-8 border-t border-gray-100">
                 <div>
-                  <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">Primary Diagnosis</p>
-                  <p className="text-lg font-bold text-gray-900 leading-snug">{selectedPatient.condition}</p>
+                  <div className="flex justify-between items-center mb-1.5 pr-4">
+                     <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Primary Diagnosis</p>
+                     {!editingCondition && (
+                        <button onClick={() => { setEditingCondition(true); setTempCondition(selectedPatient.condition); }} className="text-[9px] font-extrabold text-blue-600 hover:text-blue-900 uppercase tracking-wider">
+                           Edit
+                        </button>
+                     )}
+                  </div>
+                  {editingCondition ? (
+                     <div className="flex flex-col gap-2 mt-2">
+                        <textarea 
+                           className="w-full text-sm font-bold text-gray-900 border-2 border-gray-200 rounded p-3 focus:outline-none focus:border-gray-900 transition resize-none" 
+                           rows="3" 
+                           value={tempCondition} 
+                           onChange={(e) => setTempCondition(e.target.value)} 
+                        />
+                        <div className="flex gap-2">
+                           <Button onClick={saveCondition} className="py-2 px-4 shadow-none text-[10px] uppercase font-extrabold tracking-widest border-2 border-gray-900 bg-gray-900 text-white hover:bg-black">Save</Button>
+                           <Button variant="outline" onClick={() => setEditingCondition(false)} className="py-2 px-4 shadow-none text-[10px] uppercase font-extrabold tracking-widest border-2 border-gray-200 hover:bg-gray-50">Cancel</Button>
+                        </div>
+                     </div>
+                  ) : (
+                     <p className="text-lg font-bold text-gray-900 leading-snug">{selectedPatient.condition}</p>
+                  )}
                 </div>
                 <div>
                   <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5">Admitted On</p>
@@ -256,7 +406,16 @@ const DoctorDashboard = () => {
       )}
 
       {/* Shift Handover Report Modal */}
-      <Modal isOpen={isHandoverOpen} onClose={() => setIsHandoverOpen(false)} title="SHIFT HANDOVER & REPORTING STATUS">
+      <Modal isOpen={isHandoverOpen} onClose={() => setIsHandoverOpen(false)} title="SHIFT HANDOVER & REPORTING STATUS" maxWidth="max-w-[95vw]">
+        {handoverLoading ? (
+           <div className="flex flex-col justify-center items-center py-16">
+               <span className="text-sm font-extrabold text-gray-900 tracking-widest uppercase animate-pulse">Compiling Shift Notes...</span>
+           </div>
+        ) : !handoverData ? (
+           <div className="flex justify-center items-center py-16 text-xs font-bold text-gray-500 uppercase tracking-widest">
+              Handover record is not available.
+           </div>
+        ) : (
         <div className="space-y-6 relative">
           <div className="flex justify-between items-start gap-4">
             <p className="text-[11px] text-gray-500 uppercase tracking-widest font-bold leading-relaxed flex-1">
@@ -271,91 +430,186 @@ const DoctorDashboard = () => {
             </button>
           </div>
 
-          <div className="bg-gray-100 p-2 md:p-6 rounded border border-gray-200 max-h-[550px] overflow-y-auto shadow-inner">
-             {/* Printable A4 Container block */}
-             <div ref={handoverPrintRef} id="handover-print-area" className="bg-white p-6 md:p-12 shadow-sm rounded-sm max-w-4xl mx-auto print:p-0 print:shadow-none">
-                 <div className="border-b-4 border-gray-900 pb-4 mb-6 flex justify-between items-end">
-                    <div>
-                      <h1 className="text-2xl font-black text-gray-900 uppercase tracking-tighter">WARDWATCH SYSTEM</h1>
-                      <h2 className="text-[11px] font-extrabold text-gray-500 uppercase tracking-widest mt-0.5">Automated Physician Shift Handover</h2>
-                    </div>
-                    <div className="text-right">
-                       <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Date Generated</p>
-                       <p className="text-xs font-black text-gray-900 mt-0.5">{new Date().toLocaleString()}</p>
-                    </div>
+          <div className="-mx-6 px-4 md:px-6 py-4 max-h-[60vh] overflow-y-auto print:max-h-none print:overflow-visible">
+             <div ref={handoverPrintRef} id="handover-print-area" className="bg-white text-black p-8 md:p-12 w-full mx-auto print:p-8 print:w-full print:bg-white print:text-black min-h-[500px] font-sans">
+                 {/* HEADER */}
+                 <div className="flex justify-between items-start border-b-2 border-slate-800 pb-6 mb-8">
+                     <div>
+                         <h1 className="text-3xl font-bold uppercase tracking-wide text-slate-900 m-0">Shift Handover Report</h1>
+                         <h2 className="text-sm text-slate-700 mt-2 font-semibold m-0">WardWatch Hospital Management System</h2>
+                         <p className="text-xs text-slate-500 mt-1 m-0">Ref ID: {handoverData.shareId || 'LOCAL-PRINT'}</p>
+                     </div>
+                     <div className="text-right">
+                         <p className="text-sm font-bold bg-slate-100 px-3 py-1 inline-block rounded mb-2 border border-slate-300">
+                             {handoverData.archivedShiftName || "Live Ad-Hoc Report"}
+                         </p>
+                         <p className="text-xs font-semibold text-slate-600 block mt-1 m-0">
+                             Generated: {new Date(handoverData.generatedAt).toLocaleString()}
+                         </p>
+                         <p className="text-xs font-semibold text-slate-600 block mt-1 m-0">
+                             Attending: {activeDoctor.name}
+                         </p>
+                     </div>
                  </div>
 
-                 <div className="grid grid-cols-2 gap-6 bg-gray-50 p-6 border-l-4 border-blue-900 mb-8 rounded-r">
-                    <div>
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Attending Shift Lead</p>
-                      <p className="text-base font-extrabold text-gray-900">{activeDoctor.name} ({activeDoctor.specialty})</p>
-                    </div>
-                    <div>
-                      <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1">Total Active Roster</p>
-                      <p className="text-base font-extrabold text-gray-900">{filteredPatients.length} INDIVIDUALS</p>
-                    </div>
-                 </div>
-
-                 {/* LOS Outliers Flagged Section (Problem Statement addition!) */}
+                 {/* WARD STATS */}
                  <div className="mb-8">
-                   <h3 className="text-[10px] font-black text-white bg-red-600 px-3 py-1.5 uppercase tracking-widest rounded-sm mb-4 inline-block">Length-of-Stay Outlier Flags</h3>
-                   {filteredPatients.filter(p => new Date() - new Date(p.admissionDate) > 5 * 86400000).map(p => (
-                       <div key={p.id} className="mb-3 pl-4 border-l-2 border-orange-500">
-                          <p className="text-sm font-extrabold text-gray-900 uppercase tracking-wide">{p.name} — Bed {p.bed}</p>
-                          <p className="text-[10px] font-bold text-gray-600 mt-1 uppercase tracking-widest">Exceeds typical LOS for: {p.condition}. Please review clinical necessity.</p>
-                       </div>
-                   ))}
-                   {filteredPatients.filter(p => new Date() - new Date(p.admissionDate) > 5 * 86400000).length === 0 && <p className="text-xs font-bold text-gray-400 italic">No prolonged stay outliers detected.</p>}
+                     <h3 className="text-lg font-bold border-b border-slate-300 pb-2 mb-4 text-slate-900 uppercase tracking-wider">Ward Status Overview</h3>
+                     <div className="flex border border-slate-300 rounded overflow-hidden flex-row">
+                         <div className="flex-1 p-4 border-r border-slate-300 bg-slate-50 text-center">
+                             <p className="text-xs font-bold text-slate-500 uppercase m-0">Occupancy</p>
+                             <p className="text-2xl font-black text-slate-900 my-1">{handoverData.stats.occupiedBeds} / {handoverData.stats.totalBeds}</p>
+                             <p className="text-[10px] text-slate-500 m-0">Beds Occupied</p>
+                         </div>
+                         <div className="flex-1 p-4 border-r border-slate-300 text-center bg-white">
+                            <p className="text-xs font-bold text-red-600 uppercase m-0">Critical Alerts</p>
+                            <p className="text-2xl font-black text-red-600 my-1">{handoverData.stats.criticalEscalations}</p>
+                            <p className="text-[10px] text-slate-500 m-0">Actively Triggered</p>
+                         </div>
+                         <div className="flex-1 p-4 border-r border-slate-300 text-center bg-slate-50">
+                            <p className="text-xs font-bold text-orange-600 uppercase m-0">Pending Adms</p>
+                            <p className="text-2xl font-black text-orange-600 my-1">{handoverData.stats.pendingAdmissions}</p>
+                            <p className="text-[10px] text-slate-500 m-0">Awaiting Bed Assignment</p>
+                         </div>
+                         <div className="flex-1 p-4 text-center bg-white">
+                            <p className="text-xs font-bold text-blue-600 uppercase m-0">Discharges</p>
+                            <p className="text-2xl font-black text-blue-600 my-1">{handoverData.stats.pendingDischarges}</p>
+                            <p className="text-[10px] text-slate-500 m-0">Expected to Leave</p>
+                         </div>
+                     </div>
                  </div>
 
+                 {/* STAFF ROSTER */}
+                 <div className="mb-8 page-break-inside-avoid">
+                     <h3 className="text-lg font-bold border-b border-slate-300 pb-2 mb-4 text-slate-900 uppercase tracking-wider">Staff on Duty</h3>
+                     <div className="grid grid-cols-2 gap-6 print:grid-cols-2">
+                        <div className="border border-slate-200 p-4 rounded bg-slate-50 text-slate-900">
+                            <p className="text-xs font-bold text-slate-900 uppercase mb-3 pb-2 border-b border-slate-200">Physicians ({handoverData.staff?.doctors?.length || 0})</p>
+                            {handoverData.staff?.doctors?.length > 0 ? (
+                               <ul className="text-sm space-y-2 m-0 p-0 list-none">
+                                  {handoverData.staff.doctors.map((doc, i) => (
+                                     <li key={`doc-${i}`} className="m-0">• Dr. {doc.firstName} {doc.lastName} <span className="text-xs text-slate-600 italic block ml-3">{doc.specialty || 'General'}</span></li>
+                                  ))}
+                               </ul>
+                            ) : <p className="text-xs text-slate-500 italic m-0">No assigned doctors.</p>}
+                        </div>
+                        <div className="border border-slate-200 p-4 rounded bg-slate-50 text-slate-900">
+                            <p className="text-xs font-bold text-slate-900 uppercase mb-3 pb-2 border-b border-slate-200">Nursing Staff ({handoverData.staff?.nurses?.length || 0})</p>
+                            {handoverData.staff?.nurses?.length > 0 ? (
+                               <ul className="text-sm space-y-2 m-0 p-0 list-none">
+                                  {handoverData.staff.nurses.map((nurse, i) => (
+                                     <li key={`nurse-${i}`} className="m-0">• {nurse.firstName} {nurse.lastName} <span className="text-xs text-slate-600 italic block ml-3">{nurse.assignedBeds?.length ? `Assigned to ${nurse.assignedBeds.length} beds` : 'Roving Support'}</span></li>
+                                  ))}
+                               </ul>
+                            ) : <p className="text-xs text-slate-500 italic m-0">No assigned nurses.</p>}
+                        </div>
+                     </div>
+                 </div>
+
+                 {/* CRITICAL ALERTS */}
+                 {(handoverData.escalations?.critical?.length > 0 || handoverData.escalations?.warnings?.length > 0) && (
+                     <div className="mb-8 page-break-inside-avoid">
+                         <h3 className="text-lg font-bold border-b border-slate-300 pb-2 mb-4 text-red-700 uppercase tracking-wider">Critical Escalations & Alerts</h3>
+                         <div className="space-y-3">
+                            {handoverData.escalations.critical.map((e, i) => (
+                                <div key={`crit-${i}`} className="border-l-4 border-red-600 bg-red-50 p-3 flex justify-between items-start">
+                                    <div>
+                                        <span className="inline-block text-xs font-bold text-red-800 uppercase bg-red-200 px-2 py-0.5 rounded mr-2 mb-1">{e.type.replace(/-/g, ' ')}</span>
+                                        <span className="text-sm font-semibold text-slate-900">{e.description || "System flagged an actionable escalation."}</span>
+                                        <p className="text-xs text-slate-700 mt-1 m-0">Location: {(e.wardId && e.wardId.wardName) ? e.wardId.wardName : "Unknown Ward"} — Bed {(e.relatedBedId && e.relatedBedId.bedNumber) ? e.relatedBedId.bedNumber : "N/A"}</p>
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-600 whitespace-nowrap">{new Date(e.createdAt).toLocaleTimeString()}</span>
+                                </div>
+                            ))}
+                            {handoverData.escalations.warnings.map((e, i) => (
+                                <div key={`warn-${i}`} className="border-l-4 border-orange-500 bg-orange-50 p-3 flex justify-between items-start">
+                                    <div>
+                                        <span className="inline-block text-xs font-bold text-orange-800 uppercase bg-orange-200 px-2 py-0.5 rounded mr-2 mb-1">{e.type.replace(/-/g, ' ')}</span>
+                                        <span className="text-sm font-semibold text-slate-900">{e.description || "System flagged a workflow delay."}</span>
+                                        <p className="text-xs text-slate-700 mt-1 m-0">Location: {(e.wardId && e.wardId.wardName) ? e.wardId.wardName : "Unknown Ward"} — Bed {(e.relatedBedId && e.relatedBedId.bedNumber) ? e.relatedBedId.bedNumber : "N/A"}</p>
+                                    </div>
+                                    <span className="text-[10px] font-bold text-slate-600 whitespace-nowrap">{new Date(e.createdAt).toLocaleTimeString()}</span>
+                                </div>
+                            ))}
+                         </div>
+                     </div>
+                 )}
+
+                 {/* ACTIVE PATIENT ROSTER */}
                  <div className="mb-8">
-                   <h3 className="text-[10px] font-black text-gray-900 uppercase tracking-widest border-b border-gray-200 pb-2 mb-4">Urgent Flagged Patients (Critical / Observation)</h3>
-                   {filteredPatients.filter(p => p.status === 'critical').map(p => (
-                       <div key={p.id} className="mb-3 pl-4 border-l-2 border-red-500">
-                          <p className="text-sm font-extrabold text-gray-900 uppercase tracking-wide">{p.name} — Bed {p.bed}</p>
-                          <p className="text-[10px] font-bold text-gray-600 mt-1 uppercase tracking-widest">Diagnosis: {p.condition}</p>
-                          <p className="text-[10px] font-bold text-red-600 mt-0.5 uppercase tracking-widest">Latest Vitals: BP {p.vitals.bp} • HR {p.vitals.hr}</p>
-                       </div>
-                   ))}
-                   {filteredPatients.filter(p => p.status === 'critical').length === 0 && <p className="text-xs font-bold text-gray-400 italic">No critically flagged patients on this roster.</p>}
+                     <h3 className="text-lg font-bold border-b border-slate-300 pb-2 mb-4 text-slate-900 uppercase tracking-wider">Clinical Roster ({handoverData.activePatients?.length || 0})</h3>
+                     {handoverData.activePatients && handoverData.activePatients.length > 0 ? (
+                         <table className="w-full text-left border-collapse border border-slate-300 print:text-sm text-slate-900">
+                             <thead className="bg-slate-100">
+                                 <tr>
+                                     <th className="border border-slate-300 p-3 text-xs font-bold uppercase text-slate-800 w-1/4">Patient Details</th>
+                                     <th className="border border-slate-300 p-3 text-xs font-bold uppercase text-slate-800 w-1/4">Location</th>
+                                     <th className="border border-slate-300 p-3 text-xs font-bold uppercase text-slate-800 w-1/2">Primary Diagnosis & Notes</th>
+                                 </tr>
+                             </thead>
+                             <tbody>
+                                 {handoverData.activePatients.map((p, i) => (
+                                     <tr key={`p-${i}`} className="hover:bg-slate-50 align-top">
+                                         <td className="border border-slate-300 p-3">
+                                             <p className="font-bold text-sm m-0">{p.patientName}</p>
+                                             <p className="text-[10px] text-slate-600 m-0 mt-1 uppercase font-semibold">Admitted: {new Date(p.admissionDate).toLocaleDateString()}</p>
+                                         </td>
+                                         <td className="border border-slate-300 p-3">
+                                             <p className="text-sm font-semibold m-0">{p.wardName}</p>
+                                             <p className="text-xs text-slate-700 m-0 mt-0.5 uppercase font-semibold">Bed {p.bedNumber}</p>
+                                         </td>
+                                         <td className="border border-slate-300 p-3 whitespace-pre-wrap">
+                                             <span className="text-sm text-slate-800 leading-snug block">{p.condition}</span>
+                                         </td>
+                                     </tr>
+                                 ))}
+                             </tbody>
+                         </table>
+                     ) : <p className="text-sm text-slate-500 italic">No active patients currently logged.</p>}
                  </div>
 
-                 <div className="mb-8">
-                   <h3 className="text-[10px] font-black text-gray-900 uppercase tracking-widest border-b border-gray-200 pb-2 mb-4">Pending Medical Discharges</h3>
-                   {filteredPatients.filter(p => p.status === 'pending_clearance').map(p => (
-                       <div key={p.id} className="mb-3 pl-4 border-l-2 border-yellow-400">
-                          <p className="text-sm font-extrabold text-gray-900 uppercase tracking-wide">{p.name} — Bed {p.bed}</p>
-                          <p className="text-[10px] font-bold text-gray-600 mt-1 uppercase tracking-widest">Requirements: Final Vitals Review prior to Exit</p>
-                       </div>
-                   ))}
-                   {filteredPatients.filter(p => p.status === 'pending_clearance').length === 0 && <p className="text-xs font-bold text-gray-400 italic">No patients pending physician clearance.</p>}
+                 {/* ADMISSIONS & DISCHARGES */}
+                 <div className="grid grid-cols-2 gap-8 print:grid-cols-2 mb-8 page-break-inside-avoid">
+                     {/* INCOMING */}
+                     <div>
+                         <h3 className="text-md font-bold border-b border-slate-300 pb-2 mb-3 text-slate-900 uppercase tracking-wider">Incoming Admissions ({handoverData.admissions?.length || 0})</h3>
+                         {handoverData.admissions && handoverData.admissions.length > 0 ? (
+                             <ul className="border border-slate-300 rounded divide-y divide-slate-200 m-0 p-0 list-none bg-white">
+                                 {handoverData.admissions.map((adm, i) => (
+                                     <li key={`adm-${i}`} className="p-3 text-sm flex justify-between items-center bg-white">
+                                         <div>
+                                             <span className="font-bold block text-slate-900 m-0">{adm.patientId?.patientName || "Unknown Patient"}</span>
+                                             <span className="text-xs text-slate-600 block m-0 mt-0.5">{adm.patientId?.primaryCondition || "Undiagnosed"}</span>
+                                         </div>
+                                         <span className={`text-[10px] font-bold uppercase px-2 py-1 rounded border whitespace-nowrap ${adm.priority === 'emergency' ? 'bg-red-50 text-red-700 border-red-200' : 'bg-slate-100 text-slate-700 border-slate-300'}`}>{adm.priority}</span>
+                                     </li>
+                                 ))}
+                             </ul>
+                         ) : <p className="text-sm text-slate-500 italic m-0">No pending admissions.</p>}
+                     </div>
+
+                     {/* DISCHARGES */}
+                     <div>
+                         <h3 className="text-md font-bold border-b border-slate-300 pb-2 mb-3 text-slate-900 uppercase tracking-wider">Expected Discharges ({handoverData.discharges?.length || 0})</h3>
+                         {handoverData.discharges && handoverData.discharges.length > 0 ? (
+                             <ul className="border border-slate-300 rounded divide-y divide-slate-200 m-0 p-0 list-none bg-white">
+                                 {handoverData.discharges.map((d, i) => (
+                                     <li key={`dch-${i}`} className="p-3 text-sm flex justify-between items-center bg-white">
+                                         <span className="font-bold text-slate-900 m-0">{d.patientId?.patientName}</span>
+                                         <span className="text-xs text-green-800 bg-green-50 border border-green-200 px-2 py-1 rounded whitespace-nowrap font-semibold">
+                                             {d.expectedDischargeDate ? new Date(d.expectedDischargeDate).toLocaleDateString() : 'Awaiting Clearance'}
+                                         </span>
+                                     </li>
+                                 ))}
+                             </ul>
+                         ) : <p className="text-sm text-slate-500 italic m-0">No expected discharges.</p>}
+                     </div>
                  </div>
 
-                 <div className="mb-4">
-                   <h3 className="text-[10px] font-black text-gray-900 uppercase tracking-widest border-b border-gray-200 pb-2 mb-4">Active Standard Roster</h3>
-                   <table className="w-full text-left">
-                     <thead>
-                       <tr>
-                         <th className="text-[9px] font-extrabold text-gray-400 uppercase tracking-widest pb-3">Patient</th>
-                         <th className="text-[9px] font-extrabold text-gray-400 uppercase tracking-widest pb-3">Bed</th>
-                         <th className="text-[9px] font-extrabold text-gray-400 uppercase tracking-widest pb-3">Diagnosis Summary</th>
-                       </tr>
-                     </thead>
-                     <tbody>
-                       {filteredPatients.filter(p => p.status !== 'critical' && p.status !== 'pending_clearance').map(p => (
-                         <tr key={p.id} className="border-t border-gray-50">
-                           <td className="py-2 text-xs font-bold text-gray-900">{p.name}</td>
-                           <td className="py-2 text-xs font-bold text-gray-600 uppercase">{p.bed}</td>
-                           <td className="py-2 text-xs font-bold text-gray-600">{p.condition}</td>
-                         </tr>
-                       ))}
-                     </tbody>
-                   </table>
-                 </div>
-
-                 <div className="mt-12 text-center pt-8 border-t border-gray-200">
-                   <p className="text-[8px] font-extrabold text-gray-400 uppercase tracking-widest mb-1">— END OF CLINICAL HANDOVER REPORT —</p>
-                   <p className="text-[8px] font-extrabold text-gray-300 uppercase tracking-widest">Generated securely by WardWatch Infrastructure</p>
+                 {/* FOOTER */}
+                 <div className="text-center pt-8 border-t border-slate-800 text-xs text-slate-500 font-bold tracking-widest uppercase page-break-before-auto">
+                     — END OF HANDOVER REPORT —
+                     <p className="mt-2 text-[10px] font-normal tracking-normal text-slate-400 m-0">WardWatch Hospital System • Data Integrity Validated</p>
                  </div>
              </div>
           </div>
@@ -366,7 +620,7 @@ const DoctorDashboard = () => {
                onClick={handleGeneratePDF}
                className="flex-1 py-4 text-xs font-extrabold uppercase tracking-widest"
              >
-               Print or Save as PDF
+               Print / Export PDF
              </Button>
              <Button 
                variant="outline" 
@@ -377,6 +631,36 @@ const DoctorDashboard = () => {
              </Button>
           </div>
         </div>
+        )}
+      </Modal>
+
+      {/* Historical Shifts Modal */}
+      <Modal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} title="SHIFT HANDOVER CONTINUITY LOG">
+         <div className="space-y-4">
+            <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest leading-relaxed mb-4">
+               Access previously generated automated hospital shift snapshots to maintain immutable handover continuity.
+            </p>
+            {historyDocs.length > 0 ? (
+               <div className="max-h-[60vh] overflow-y-auto space-y-3">
+                  {historyDocs.map((doc, i) => (
+                     <div key={i} className="flex justify-between items-center p-4 border border-gray-200 rounded-sm hover:border-gray-900 hover:shadow-sm transition cursor-pointer" onClick={() => loadHistoricalHandover(doc.shareId)}>
+                        <div>
+                           <p className="text-xs font-extrabold tracking-widest uppercase text-gray-900">{doc.shiftName}</p>
+                           <p className="text-[9px] font-bold text-gray-500 uppercase mt-1">{new Date(doc.generatedAt).toLocaleString()}</p>
+                        </div>
+                        <Button variant="outline" className="text-[9px] px-4 py-2 uppercase font-extrabold tracking-widest shadow-none">View</Button>
+                     </div>
+                  ))}
+               </div>
+            ) : (
+               <div className="p-8 text-center bg-gray-50 border border-gray-100 rounded">
+                  <p className="text-xs font-extrabold tracking-widest uppercase text-gray-500">No shift archives located yet.</p>
+               </div>
+            )}
+            <div className="flex justify-end pt-4 border-t border-gray-100">
+               <Button variant="outline" onClick={() => setIsHistoryOpen(false)} className="text-[10px] uppercase font-extrabold tracking-widest px-6 shadow-none">Close</Button>
+            </div>
+         </div>
       </Modal>
 
     </div>

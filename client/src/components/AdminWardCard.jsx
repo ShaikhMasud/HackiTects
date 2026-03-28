@@ -1,6 +1,6 @@
 import Button from "./Button";
 
-const AdminWardCard = ({ name, beds, onDrillDown }) => {
+const AdminWardCard = ({ name, beds, wardId, onDrillDown, onEdit, onDelete }) => {
   const total = beds.length;
   const occupied = beds.filter(b => b.status === "occupied").length;
   const cleaning = beds.filter(b => b.status === "cleaning").length;
@@ -11,14 +11,20 @@ const AdminWardCard = ({ name, beds, onDrillDown }) => {
 
   return (
     <div className="bg-white border border-gray-200 rounded-xl overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow">
-      <div className="p-8 border-b border-gray-100 bg-gray-50 flex justify-between items-start">
+      <div className="p-6 border-b border-gray-100 bg-gray-50 flex justify-between items-start">
         <div>
            <h3 className="text-xl font-extrabold text-gray-900 tracking-tight">{name}</h3>
            <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-widest mt-1">Capacity: {total} Beds</p>
         </div>
-        <div className="text-right">
-           <h3 className="text-3xl font-extrabold text-gray-900 tracking-tight">{occupancyPercent}%</h3>
-           <p className="text-[10px] font-extrabold text-blue-900 uppercase tracking-widest mt-1">Occupancy</p>
+        <div className="flex flex-col items-end gap-2">
+           <div className="flex gap-2">
+              <button title="Edit Ward" onClick={() => onEdit(wardId)} className="text-[10px] font-bold text-gray-500 hover:text-gray-900 border px-2 py-1 bg-white rounded uppercase">Edit</button>
+              <button title="Delete Ward" onClick={() => onDelete(wardId)} className="text-[10px] font-bold text-red-500 border border-red-200 hover:text-white hover:bg-red-500 hover:border-red-500 px-2 py-1 bg-white rounded uppercase">Rm</button>
+           </div>
+           <div className="text-right">
+              <h3 className="text-2xl font-extrabold text-gray-900 tracking-tight leading-none">{occupancyPercent}%</h3>
+              <p className="text-[9px] font-extrabold text-blue-900 uppercase tracking-widest mt-1">Occupancy</p>
+           </div>
         </div>
       </div>
       

@@ -10,6 +10,15 @@ const validTransitions = {
   reserved: ["occupied", "available"],
 };
 
+exports.getAllBeds = async (req, res) => {
+  try {
+    const beds = await Bed.find();
+    res.json(beds);
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
 exports.updateBedStatus = async (req, res) => {
   try {
     const { bedId } = req.params;
@@ -58,6 +67,60 @@ exports.updateBedStatus = async (req, res) => {
 
     res.json({ success: true, bed });
   } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+exports.transferPatient = async (req, res) => {
+  try {
+    const { sourceBedId, targetBedId } = req.body;
+
+    const sourceBed = await Bed.findById(sourceBedId);
+    const targetBed = await Bed.findById(targetBedId);
+
+    if (!sourceBed || !targetBed) {
+      return res.status(404).json({ message: "One or both beds not found" });
+    }
+
+    if (sourceBed.status !== "occupied" || !sourceBed.occupantPatientId) {
+       return res.status(400).json({ message: "Source bed is not occupied" });
+    }
+
+    if (!["available", "reserved"].includes(targetBed.status)) {
+       return res.status(400).json({ message: "Target bed is not available" });
+    }
+
+    // Move patient
+    const patientId = sourceBed.occupantPatientId;
+    
+    // Update Target Bed
+    targetBed.status = "occupied";
+    targetBed.occupantPatientId = patientId;
+    targetBed.lastUpdated = new Date();
+    await targetBed.save();
+
+    // Update Source Bed
+    sourceBed.status = "cleaning";
+    sourceBed.occupantPatientId = null;
+    sourceBed.cleaningStartTime = new Date();
+    sourceBed.lastUpdated = new Date();
+    await sourceBed.save();
+
+    // Fire SSE
+    sendEvent("bed-updated", {
+      bedId: targetBed._id,
+      wardId: targetBed.wardId,
+      status: targetBed.status,
+    });
+    
+    sendEvent("bed-updated", {
+      bedId: sourceBed._id,
+      wardId: sourceBed.wardId,
+      status: sourceBed.status,
+    });
+
+    res.json({ success: true, message: "Patient transferred successfully" });
+  } catch(error) {
     res.status(500).json({ message: error.message });
   }
 };

@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import { Eye, EyeOff } from "lucide-react";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, Legend } from "recharts";
 import StatCard from "../../components/StatCard";
@@ -66,6 +68,7 @@ const ChartTooltip = ({ active, payload, label }) => {
 
 const AdminDashboard = () => {
   const [beds, setBeds] = useState([]);
+  const [wards, setWards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [drilledWard, setDrilledWard] = useState(null);
   const [selectedBed, setSelectedBed] = useState(null);
@@ -74,6 +77,14 @@ const AdminDashboard = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isManageMenuOpen, setIsManageMenuOpen] = useState(false);
   const [isCreateWardModalOpen, setIsCreateWardModalOpen] = useState(false);
+  const [editingWardId, setEditingWardId] = useState(null);
+  const [deletingWardId, setDeletingWardId] = useState(null);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+     localStorage.removeItem("token");
+     navigate("/");
+  };
 
   const [wardForm, setWardForm] = useState({
     wardName: "",
@@ -88,9 +99,58 @@ const AdminDashboard = () => {
     });
   };
 
-  const handleCreateWard = () => {
-    console.log("Creating Ward:", wardForm);
+  const handleSaveWard = async () => {
+    try {
+      const url = editingWardId ? `http://localhost:5000/api/wards/${editingWardId}` : "http://localhost:5000/api/wards";
+      const method = editingWardId ? "PUT" : "POST";
+      const res = await fetch(url, {
+         method,
+         headers: { "Content-Type": "application/json" },
+         body: JSON.stringify({
+            wardName: wardForm.wardName,
+            totalBeds: parseInt(wardForm.numberOfBeds) || 10,
+            specialization: wardForm.wardCategory || "General"
+         })
+      });
+      if(res.ok) {
+         setWardForm({ wardName: "", wardCategory: "", numberOfBeds: "" });
+         setEditingWardId(null);
+         toast.success(editingWardId ? "Ward successfully updated." : "New ward successfully deployed.");
+         fetchHospitalData(); 
+      } else {
+         const info = await res.json();
+         toast.error(info.message || "Failed to save ward");
+      }
+    } catch(e) { console.error(e); }
     setIsCreateWardModalOpen(false);
+  };
+
+  const handleEditWard = (wardId) => {
+     const w = wards.find(w => w._id === wardId);
+     if(w) {
+        setEditingWardId(wardId);
+        setWardForm({ wardName: w.wardName, wardCategory: w.specialization || "General", numberOfBeds: w.totalBeds });
+        setIsCreateWardModalOpen(true);
+     }
+  };
+
+  const handleDeleteWard = (wardId) => {
+     setDeletingWardId(wardId);
+  };
+  
+  const executeDeleteWard = async () => {
+     if(!deletingWardId) return;
+     try {
+        const res = await fetch(`http://localhost:5000/api/wards/${deletingWardId}`, { method: "DELETE" });
+        if(res.ok) {
+           setDeletingWardId(null);
+           toast.success("Ward successfully uninstalled.");
+           fetchHospitalData();
+        } else {
+           const info = await res.json();
+           toast.error(info.message || "Failed to delete ward.");
+        }
+     } catch(e) { console.error(e); }
   };
 
   const [memberForm, setMemberForm] = useState({
@@ -114,7 +174,7 @@ const AdminDashboard = () => {
   try {
     // Optional: basic validation
     if (!memberForm.email || !memberForm.password) {
-      alert("Email and password are required");
+      toast.error("Email and password are required");
       return;
     }
     if(memberForm.role=="staff"){
@@ -127,6 +187,8 @@ const AdminDashboard = () => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
+        firstName: memberForm.firstName,
+        lastName: memberForm.lastName,
         email: memberForm.email,
         password: memberForm.password,
         role: memberForm.role,
@@ -140,7 +202,7 @@ const AdminDashboard = () => {
     }
 
     // ✅ Success
-    alert("Member added successfully");
+    toast.success("System Member provisioned successfully!");
 
     // (optional) store token if needed
     // localStorage.setItem("token", data.token);
@@ -158,34 +220,47 @@ const AdminDashboard = () => {
     setIsAddModalOpen(false);
 
   } catch (err) {
-    alert(err.message);
+    toast.error(err.message || "Failed to provision team member");
   }
 };
   const [activeGlobalTab, setActiveGlobalTab] = useState("wards");
 
+  const fetchHospitalData = async () => {
+    try {
+      setLoading(true);
+      const wardsRes = await fetch("http://localhost:5000/api/wards");
+      const wd = await wardsRes.json();
+      setWards(wd);
+
+      const bedPromises = wd.map(w => fetch(`http://localhost:5000/api/wards/${w._id}`).then(r => r.json()));
+      const results = await Promise.all(bedPromises);
+      
+      const allBeds = results.flatMap((r, index) => r.beds.map(b => ({
+          id: b._id,
+          ward: wd[index].wardName,
+          bedNumber: b.bedNumber,
+          status: b.status,
+          patient: b.occupantPatientId ? {
+              name: b.occupantPatientId.patientName,
+              condition: b.occupantPatientId.primaryCondition || 'Standard',
+              doctor: 'Assigned Provider',
+              admitDate: b.occupantPatientId.admissionDate ? b.occupantPatientId.admissionDate.split('T')[0] : 'N/A'
+          } : null,
+          since: b.cleaningStartTime ? 'Cleaning' : null
+      })));
+
+      setBeds(allBeds);
+      setEscalations([
+        { id: 1, type: "critical", message: "Hospital System Active: Real-time API bindings are successfully monitoring live clinical pathways.", time: new Date().toISOString() },
+      ]);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchHospitalData = async () => {
-      try {
-        setLoading(true);
-        setTimeout(() => {
-          const generalBeds = generateBeds(40, "G", "General Ward");
-          const icuBeds = generateBeds(30, "I", "ICU Ward");
-          const premiumBeds = generateBeds(20, "P", "Premium Ward");
-          setBeds([...generalBeds, ...icuBeds, ...premiumBeds]);
-
-          setEscalations([
-            { id: 1, type: "critical", message: "ICU Ward: Projected to exceed critical threshold within 2 hours based on pending ED admissions.", time: new Date(Date.now() - 5 * 60000).toISOString() },
-            { id: 2, type: "warning", message: "General Ward: 4 beds pending cleaning for over 45 minutes.", time: new Date(Date.now() - 20 * 60000).toISOString() },
-            { id: 3, type: "warning", message: "Premium Ward: Discharge delays detected for 2 patients waiting > 3 hours.", time: new Date(Date.now() - 15 * 60000).toISOString() },
-          ]);
-
-          setLoading(false);
-        }, 600);
-      } catch (error) {
-        console.error("Failed to fetch admin data", error);
-        setLoading(false);
-      }
-    };
     fetchHospitalData();
   }, []);
 
@@ -193,8 +268,6 @@ const AdminDashboard = () => {
   const totalOccupied = beds.filter(b => b.status === "occupied").length;
   const totalCleaning = beds.filter(b => b.status === "cleaning").length;
   const globalOccupancy = Math.round((totalOccupied / (totalBeds || 1)) * 100) || 0;
-
-  const wards = ["General Ward", "ICU Ward", "Premium Ward"];
 
   const handleBedClick = (bed) => {
     setSelectedBed(bed);
@@ -228,6 +301,9 @@ const AdminDashboard = () => {
           <Button onClick={() => setIsManageMenuOpen(!isManageMenuOpen)} className="text-xs font-extrabold uppercase tracking-widest px-6 py-3 shadow-none">
             Manage Hospital ▼
           </Button>
+          <Button onClick={handleLogout} variant="outline" className="text-xs font-extrabold uppercase tracking-widest px-4 py-3 shadow-none border-2 border-gray-200 text-gray-900 ml-2 hover:bg-red-50 hover:text-red-900 hover:border-red-200">
+            Logout
+          </Button>
 
           {isManageMenuOpen && (
             <div className="absolute right-0 top-full mt-2 w-56 bg-white border-2 border-gray-900 rounded shadow-xl z-50 overflow-hidden">
@@ -238,7 +314,7 @@ const AdminDashboard = () => {
                 + Add System Member
               </button>
               <button 
-                onClick={() => { setIsCreateWardModalOpen(true); setIsManageMenuOpen(false); }}
+                onClick={() => { setEditingWardId(null); setWardForm({ wardName: "", wardCategory: "", numberOfBeds: "" }); setIsCreateWardModalOpen(true); setIsManageMenuOpen(false); }}
                 className="w-full text-left px-5 py-4 text-[10px] font-extrabold uppercase tracking-widest text-gray-900 hover:bg-gray-100 hover:text-black transition-colors"
               >
                 + Create New Ward
@@ -341,8 +417,16 @@ const AdminDashboard = () => {
           <div className="pt-8 animate-in fade-in duration-500">
             <h3 className="text-sm font-extrabold text-gray-900 uppercase tracking-widest mb-6">Ward Distribution Overviews</h3>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
-              {wards.map(wardName => (
-                <AdminWardCard key={wardName} name={wardName} beds={beds.filter(b => b.ward === wardName)} onDrillDown={handleDrillDown} />
+              {wards.map(ward => (
+                <AdminWardCard 
+                   key={ward._id} 
+                   wardId={ward._id}
+                   name={ward.wardName} 
+                   beds={beds.filter(b => b.ward === ward.wardName)} 
+                   onDrillDown={handleDrillDown} 
+                   onEdit={handleEditWard}
+                   onDelete={handleDeleteWard}
+                />
               ))}
             </div>
           </div>
@@ -384,10 +468,10 @@ const AdminDashboard = () => {
               </p>
             </div>
             <div className="flex flex-wrap items-center gap-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">
-              <span className="flex items-center gap-2"><span className="w-4 h-4 rounded-sm bg-gradient-to-r from-blue-950 to-blue-900 shadow-sm"></span> OCCUPIED</span>
-              <span className="flex items-center gap-2"><span className="w-4 h-4 rounded-sm bg-gray-100 border-2 border-gray-300"></span> RESERVED</span>
-              <span className="flex items-center gap-2"><span className="w-4 h-4 rounded-sm bg-white border-2 border-gray-300 border-dashed"></span> CLEANING</span>
-              <span className="flex items-center gap-2"><span className="w-4 h-4 rounded-sm bg-white border-2 border-gray-200"></span> AVAILABLE</span>
+              <span className="flex items-center gap-2"><span className="w-4 h-4 rounded-sm bg-gradient-to-br from-blue-950 to-blue-900 shadow-sm border border-blue-950"></span> OCCUPIED</span>
+              <span className="flex items-center gap-2"><span className="w-4 h-4 rounded-sm bg-gradient-to-br from-violet-900 to-violet-800 shadow-sm border border-violet-950"></span> RESERVED</span>
+              <span className="flex items-center gap-2"><span className="w-4 h-4 rounded-sm bg-gradient-to-br from-amber-600 to-amber-500 shadow-sm border border-amber-700"></span> CLEANING</span>
+              <span className="flex items-center gap-2"><span className="w-4 h-4 rounded-sm bg-gradient-to-br from-emerald-600 to-emerald-500 shadow-sm border border-emerald-700"></span> AVAILABLE</span>
             </div>
           </div>
 
@@ -544,7 +628,7 @@ const AdminDashboard = () => {
       <Modal
         isOpen={isCreateWardModalOpen}
         onClose={() => setIsCreateWardModalOpen(false)}
-        title="CREATE HOSPITAL WARD"
+        title={editingWardId ? "EDIT HOSPITAL WARD" : "CREATE HOSPITAL WARD"}
       >
         <div className="space-y-6">
           <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 leading-relaxed">
@@ -599,13 +683,38 @@ const AdminDashboard = () => {
             <Button variant="outline" onClick={() => setIsCreateWardModalOpen(false)} className="px-6 text-[10px] font-extrabold uppercase tracking-widest shadow-none border-2 border-gray-200 text-gray-600">
               Abort
             </Button>
-            <Button onClick={handleCreateWard} className="px-6 text-[10px] font-extrabold uppercase tracking-widest shadow-none">
-              Deploy Ward Space
+            <Button onClick={handleSaveWard} className="px-6 text-[10px] font-extrabold uppercase tracking-widest shadow-none">
+              {editingWardId ? "Save Ward Changes" : "Deploy Ward Space"}
             </Button>
           </div>
 
         </div>
       </Modal>
+
+      {/* DELETE CONFIRMATION MODAL */}
+      <Modal
+        isOpen={!!deletingWardId}
+        onClose={() => setDeletingWardId(null)}
+        title="DANGER: DECOMMISSION WARD"
+      >
+        <div className="space-y-6">
+          <p className="text-sm font-bold text-gray-900 leading-relaxed">
+            Are you absolutely sure you want to permanently decommission this clinical ward and its entire capacity framework?
+          </p>
+          <p className="text-[10px] font-extrabold text-red-500 uppercase tracking-widest leading-relaxed">
+            Warning: This action cannot be undone. You cannot delete a ward if any beds inside are occupied.
+          </p>
+          <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100">
+            <Button variant="outline" onClick={() => setDeletingWardId(null)} className="px-6 text-[10px] font-extrabold uppercase tracking-widest shadow-none border-2 border-gray-200 text-gray-600">
+               Abort
+            </Button>
+            <Button onClick={executeDeleteWard} className="px-6 text-[10px] font-extrabold border-red-600 hover:border-red-700 uppercase tracking-widest bg-red-600 text-white hover:bg-red-700 shadow-none hover:shadow-lg transition-all">
+               Format Ward Data
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
     </div>
   );
 };

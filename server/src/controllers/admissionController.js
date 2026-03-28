@@ -26,49 +26,116 @@ exports.getAdmissionsQueue = async (req, res) => {
 
 // Create admission
 exports.createAdmission = async (req, res) => {
-  const { patientName, wardId, priority, doctorId } = req.body;
+  try {
+    const { patientName, wardId, priority, doctorId, bedId, age, gender, bp, hr, temp, condition } = req.body;
 
-  const totalBeds = await Bed.countDocuments({ wardId });
-  const occupiedBeds = await Bed.countDocuments({
-    wardId,
-    status: "occupied",
-  });
-
-  // Example rule: block if > 120% demand
-  if (occupiedBeds >= totalBeds * 1.2) {
-    return res.status(400).json({
-      message: "Ward overloaded, cannot accept more patients",
+    const totalBeds = await Bed.countDocuments({ wardId });
+    const occupiedBeds = await Bed.countDocuments({
+      wardId,
+      status: "occupied",
     });
+
+    if (occupiedBeds >= totalBeds * 1.2) {
+      return res.status(400).json({
+        message: "Ward overloaded, cannot accept more patients",
+      });
+    }
+
+    // Resolve doctorId strictly - if frontend sends "D-101", replace with a valid doctor ID
+    let validDoctorId = doctorId;
+    if (!require("mongoose").Types.ObjectId.isValid(doctorId)) {
+      const doctor = await require("../models/User").findOne({ role: "doctor" });
+      if (doctor) {
+         validDoctorId = doctor._id;
+      } else {
+         return res.status(400).json({ message: "No valid doctors found in the database. Please add a doctor first." });
+      }
+    }
+
+    // Create the patient document
+    const patient = await Patient.create({
+      patientName,
+      age: age || null,
+      gender: gender || null,
+      vitals: {
+         bp: bp || "120/80",
+         hr: hr || 70,
+         temp: temp || 98.6
+      },
+      primaryCondition: condition || "Undiagnosed",
+      admissionDate: new Date(),
+      responsibleDoctorId: validDoctorId, 
+    });
+
+    sendEvent(`ward-${wardId}`, {
+      type: "doctor-assigned",
+      data: {
+        patientId: patient._id,
+        doctorId: validDoctorId,
+      },
+    });
+
+    // Check optional bedId logic
+    let targetBed = null;
+    if (bedId) {
+      const isValidObjectId = require("mongoose").Types.ObjectId.isValid(bedId);
+      const isNumeric = !isNaN(Number(bedId));
+
+      const orQueries = [];
+      if (isValidObjectId) {
+         orQueries.push({ _id: bedId });
+      }
+      if (isNumeric) {
+         orQueries.push({ bedNumber: Number(bedId) });
+      } else if (!isValidObjectId) {
+         // fallback if bedNumber is string based in some schemas
+         orQueries.push({ bedNumber: bedId });
+      }
+
+      if (orQueries.length > 0) {
+        targetBed = await Bed.findOne({
+           wardId,
+           status: { $in: ["available", "reserved"] },
+           $or: orQueries
+        });
+      }
+    }
+
+    const admission = await Admission.create({
+      patientId: patient._id,
+      wardId,
+      priority,
+      doctorId: validDoctorId,
+      bedId: targetBed ? targetBed._id : null,
+      status: targetBed ? "arrived" : "pending"
+    });
+
+    if (targetBed) {
+      targetBed.status = "occupied";
+      targetBed.occupantPatientId = patient._id;
+      await targetBed.save();
+      
+      sendEvent("patient-admitted", {
+         admissionId: admission._id,
+         wardId: admission.wardId,
+      });
+
+      sendEvent("bed-updated", {
+         bedId: targetBed._id,
+         status: "occupied",
+      });
+    } else {
+      await processAdmissionsQueue(wardId);
+    }
+
+    res.json({
+      success: true,
+      admission,
+      message: targetBed ? "Bed directly assigned" : "Added to queue (or admitted if bed available)",
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
   }
-
-  const patient = await Patient.create({
-    patientName,
-    admissionDate: new Date(),
-    responsibleDoctorId: doctorId, 
-  });
-
-  sendEvent(`ward-${wardId}`, {
-    type: "doctor-assigned",
-    data: {
-      patientId,
-      doctorId,
-    },
-  });
-
-  const admission = await Admission.create({
-    patientId: patient._id,
-    wardId,
-    priority,
-  });
-
-  // Try allocation immediately
-  await processAdmissionsQueue(wardId);
-
-  res.json({
-    success: true,
-    admission,
-    message: "Added to queue (or admitted if bed available)",
-  });
 };
 
 // Get admissions for ward

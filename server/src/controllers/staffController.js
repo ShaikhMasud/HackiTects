@@ -3,6 +3,30 @@ const Bed = require("../models/Bed");
 const { sendEvent } = require("../sse/eventStream");
 
 /**
+ * 🧑‍⚕️ Get All Doctors
+ */
+exports.getAllDoctors = async (req, res) => {
+  try {
+    const doctors = await User.find({ role: "doctor" });
+    res.json({ success: true, doctors });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
+ * 👩‍⚕️ Get All Nurses
+ */
+exports.getAllNurses = async (req, res) => {
+  try {
+    const nurses = await User.find({ role: "nurse" });
+    res.json({ success: true, nurses });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+/**
  * 🧑‍⚕️ Assign Nurse to Beds
  */
 exports.assignNurseToBeds = async (req, res) => {

@@ -14,6 +14,18 @@ const admissionSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    bedId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Bed",
+      index: true,
+      default: null,
+    },
+    doctorId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
+      required: true,
+    },
     status: {
       type: String,
       enum: ["pending", "arrived"],

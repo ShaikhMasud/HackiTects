@@ -3,6 +3,8 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import Login from "./pages/auth/Login";
+import ForgotPassword from "./pages/auth/ForgotPassword";
+import ResetPassword from "./pages/auth/ResetPassword";
 import StaffDashboard from "./pages/staff/StaffDashboard";
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -26,6 +28,8 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Login />} />
+          <Route path="/forgotpassword" element={<ForgotPassword />} />
+          <Route path="/resetpassword/:resetToken" element={<ResetPassword />} />
           <Route path="/staff" element={<StaffDashboard />} />
           <Route path="/doctor" element={<DoctorDashboard />} />
           <Route path="/admin" element={<AdminDashboard />} />

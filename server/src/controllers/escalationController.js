@@ -5,7 +5,9 @@ exports.getWardEscalations = async (req, res) => {
   const escalations = await Escalation.find({
     wardId: req.params.wardId,
     resolved: false,
-  });
+  })
+    .populate("wardId", "wardName")
+    .populate("relatedBedId", "bedNumber");
 
   res.json(escalations);
 };
@@ -16,7 +18,9 @@ exports.resolveEscalation = async (req, res) => {
     req.params.escalationId,
     { resolved: true },
     { new: true },
-  );
+  )
+    .populate("wardId", "wardName")
+    .populate("relatedBedId", "bedNumber");
 
   res.json(escalation);
 };

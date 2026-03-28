@@ -55,11 +55,13 @@ export default function Login() {
             // ✅ Store token & user
             localStorage.setItem("token", data.token);
             localStorage.setItem("user", JSON.stringify(data.user));
+            
+            toast.success("Logged in successfully!");
 
             // ✅ Redirect based on backend role
             const role = data.user.role;
 
-            if (role === "staff") navigate("/staff");
+            if (role === "nurse") navigate("/staff");
             else if (role == "admin") navigate("/admin");
             else if (role === "doctor") navigate("/doctor");
 
@@ -132,9 +134,18 @@ export default function Login() {
 
                         {/* Password */}
                         <div>
-                            <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-2 block">
-                                Password
-                            </label>
+                            <div className="flex justify-between items-center mb-2">
+                                <label className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest block">
+                                    Password
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() => navigate('/forgotpassword')}
+                                    className="text-[10px] font-extrabold text-blue-900 uppercase tracking-widest hover:text-blue-700 transition"
+                                >
+                                    Forgot Password?
+                                </button>
+                            </div>
                             <div className="relative">
                                 <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
                                 <input
