@@ -1,14 +1,7 @@
 const express = require("express");
 const router = express.Router();
+const { addClient } = require("../sse/eventStream");
 
-// Example GET route
-router.get("/", (req, res) => {
-  res.send("Get all users");
-});
-
-// Example POST route
-router.post("/register", (req, res) => {
-  res.send("User registered");
-});
+router.get("/stream", addClient);
 
 module.exports = router;

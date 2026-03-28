@@ -13,8 +13,9 @@ app.use(cors());
 app.use(express.json());
 
 // Routes
-// app.use("/api/auth", require("./src/routes/authRoutes"));
-// app.use("/api/events", require("./src/routes/sseRoutes"));
+app.use("/", require("./src/routes/userRoutes"));
+app.use("/api/auth", require("./src/routes/authRoutes"));
+app.use("/api/events", require("./src/routes/sseRoutes"));
 
 // Start server
 app.listen(process.env.PORT, () =>
