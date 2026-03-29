@@ -414,7 +414,9 @@ const DoctorDashboard = () => {
                onChange={(e) => setTargetDoctorId(e.target.value)}
              >
                 <option value="">-- SELECT INCOMING DOCTOR --</option>
-                {doctorsList.map((doc, idx) => (
+                {doctorsList
+                   .filter(doc => doc._id !== user.id && doc._id !== user._id)
+                   .map((doc, idx) => (
                    <option key={idx} value={doc._id}>DR. {doc.firstName} {doc.lastName}</option>
                 ))}
              </select>
