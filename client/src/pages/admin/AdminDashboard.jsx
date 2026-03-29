@@ -88,7 +88,7 @@ const AdminDashboard = () => {
 
   const handleSaveWard = async () => {
     try {
-      const url = editingWardId ? `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/wards/${editingWardId}` : `${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/wards`;
+      const url = editingWardId ? `${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/wards/${editingWardId}` : `${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/wards`;
       const method = editingWardId ? "PUT" : "POST";
       const res = await fetch(url, {
          method,
@@ -128,7 +128,7 @@ const AdminDashboard = () => {
   const executeDeleteWard = async () => {
      if(!deletingWardId) return;
      try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/wards/${deletingWardId}`, { method: "DELETE" });
+        const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/wards/${deletingWardId}`, { method: "DELETE" });
         if(res.ok) {
            setDeletingWardId(null);
            toast.success("Ward successfully uninstalled.");
@@ -168,7 +168,7 @@ const AdminDashboard = () => {
       memberForm.role="nurse"
     }
 
-    const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/auth/register`, {
+    const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/auth/register`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -215,11 +215,11 @@ const AdminDashboard = () => {
   const fetchHospitalData = async () => {
     try {
       setLoading(true);
-      const wardsRes = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/wards`);
+      const wardsRes = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/wards`);
       const wd = await wardsRes.json();
       setWards(wd);
 
-      const bedPromises = wd.map(w => fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/wards/${w._id}`).then(r => r.json()));
+      const bedPromises = wd.map(w => fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/wards/${w._id}`).then(r => r.json()));
       const results = await Promise.all(bedPromises);
       
       const allBeds = results.flatMap((r, index) => r.beds.map(b => ({
@@ -238,7 +238,7 @@ const AdminDashboard = () => {
 
       setBeds(allBeds);
       
-      const allEscalationsRes = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/escalations`);
+      const allEscalationsRes = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/escalations`);
       if (allEscalationsRes.ok) {
         const escData = await allEscalationsRes.json();
         setEscalations(escData.map(e => {
@@ -255,7 +255,7 @@ const AdminDashboard = () => {
       } else { setEscalations([]); }
 
       // Analytics
-      const analyticsRes = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/analytics/dashboard`);
+      const analyticsRes = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/analytics/dashboard`);
       if (analyticsRes.ok) {
         const analyticsData = await analyticsRes.json();
         setOccupancyTrendData(analyticsData.occupancyTrendData);
@@ -277,7 +277,7 @@ const AdminDashboard = () => {
   }, []);
 
   useEffect(() => {
-    const eventSource = new EventSource(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/events/stream`);
+    const eventSource = new EventSource(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/events/stream`);
 
     const handleEvent = () => {
       fetchHospitalData();

@@ -36,7 +36,7 @@ export default function ResetPassword() {
         try {
             setIsLoading(true);
 
-            const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/auth/resetpassword`, {
+            const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/auth/resetpassword`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",

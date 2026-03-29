@@ -104,7 +104,7 @@ const StaffDashboard = () => {
       // Step 1: Create the patient implicitly via admission or wait, backend admissionController handles Patient creation if sent? Look at backend logic. 
       // Instead of guessing, since we might need Patient ID, let's just send the admission request if the backend endpoint supports direct creation without patientId. 
       // If doing a true integration, we assume the backend handles it.
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admissions`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/admissions`, {
          method: "POST",
          headers: { "Content-Type": "application/json" },
          body: JSON.stringify({
@@ -143,16 +143,16 @@ const StaffDashboard = () => {
     try {
       setLoading(true);
       
-      const wardsRes = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/wards`);
+      const wardsRes = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/wards`);
       const wardsData = await wardsRes.json();
       setWardsList(wardsData);
       
-      const allBedsRes = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/beds`);
+      const allBedsRes = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/beds`);
       if (allBedsRes.ok) {
          setGlobalBeds(await allBedsRes.json());
       }
       
-      const docsRes = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/staff/doctors`);
+      const docsRes = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/staff/doctors`);
       let fetchedDoctors = [];
       if (docsRes.ok) {
          const docsData = await docsRes.json();
@@ -178,11 +178,11 @@ const StaffDashboard = () => {
       }
       
       const [bedsRes, discRes, admRes, escRes, capRes] = await Promise.all([
-         fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/wards/${currentWardId}`),
-         fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/discharges/ward/${currentWardId}`),
-         fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admissions/ward/${currentWardId}`),
-         fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/escalations/ward/${currentWardId}`),
-         fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/capacity/${currentWardId}/forecast`)
+         fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/wards/${currentWardId}`),
+         fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/discharges/ward/${currentWardId}`),
+         fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/admissions/ward/${currentWardId}`),
+         fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/escalations/ward/${currentWardId}`),
+         fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/capacity/${currentWardId}/forecast`)
       ]);
       
       if(bedsRes.ok) {
@@ -253,7 +253,7 @@ const StaffDashboard = () => {
   }, [activeWard]);
 
   useEffect(() => {
-    const eventSource = new EventSource(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/events/stream`);
+    const eventSource = new EventSource(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/events/stream`);
 
     const handleEvent = () => {
       fetchDashboardData();
@@ -315,7 +315,7 @@ const StaffDashboard = () => {
 
   const updateStatus = async (newStatus) => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/beds/${selectedBed.id}/status`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/beds/${selectedBed.id}/status`, {
          method: "PUT",
          headers: { "Content-Type": "application/json" },
          body: JSON.stringify({ status: newStatus })
@@ -331,7 +331,7 @@ const StaffDashboard = () => {
   const handleTransfer = async () => {
      if (!transferBedId) return;
      try {
-       const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/beds/transfer`, {
+       const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/beds/transfer`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ sourceBedId: selectedBed.id, targetBedId: transferBedId })
@@ -353,7 +353,7 @@ const StaffDashboard = () => {
 
   const handleAssignAdmission = async (admitId) => {
      try {
-       const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admissions/${admitId}/arrived`, { method: "PUT" });
+       const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/admissions/${admitId}/arrived`, { method: "PUT" });
        if(res.ok) {
          toast.success(`Patient marked as arrived. System will auto-assign queue.`);
          fetchDashboardData();
@@ -453,7 +453,7 @@ const StaffDashboard = () => {
           discharges={discharges.filter(d => currentWardBeds.some(b => b.bedNumber === d.bedId || b.id === d.bedId))}
           onComplete={async (id) => {
             try {
-               await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/discharges/${id}/complete`, {method: "PUT"});
+               await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/discharges/${id}/complete`, {method: "PUT"});
                fetchDashboardData();
             }catch(e){}
           }}
@@ -463,7 +463,7 @@ const StaffDashboard = () => {
           admissions={admissions.filter(a => a.targetWard === activeWard && a.status === 'pending')}
           onArrive={async (id) => {
              try {
-                const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admissions/${id}/arrived`, {method: "PUT"});
+                const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/admissions/${id}/arrived`, {method: "PUT"});
                 if (!res.ok) {
                    const data = await res.json();
                    toast.error(data.message || "No beds available");
@@ -476,7 +476,7 @@ const StaffDashboard = () => {
           onDiscard={async (id) => {
              if (window.confirm("Are you sure you want to discard this pending admission?")) {
                  try {
-                     const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/admissions/${id}`, { method: "DELETE" });
+                     const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/admissions/${id}`, { method: "DELETE" });
                      if (res.ok) {
                          toast.success("Pending admission discarded successfully.");
                          setAdmissions(prev => prev.filter(item => item.id !== id));

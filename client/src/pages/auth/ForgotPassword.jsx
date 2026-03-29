@@ -17,7 +17,7 @@ export default function ForgotPassword() {
         try {
             setIsLoading(true);
 
-            const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/auth/forgotpassword`, {
+            const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/auth/forgotpassword`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

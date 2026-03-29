@@ -29,13 +29,13 @@ walk('c:\\Riyaz\\Personal\\Projects\\WardWatch\\HackiTects\\client\\src', functi
   results.filter(f => f.endsWith('.jsx')).forEach(file => {
     let content = fs.readFileSync(file, 'utf8');
     
-    // Replace "http://localhost:5000/api/foo" or 'http://localhost:5000/api/foo'
-    content = content.replace(/(["'])http:\/\/localhost:5000(.*?)\1/g, '`${import.meta.env.VITE_API_URL || "http://localhost:5000"}$2`');
+    // Replace the specific fallback we added earlier
+    content = content.replace(/\|\| "http:\/\/localhost:5000"/g, '|| "https://hackitects.onrender.com"');
     
-    // Replace `http://localhost:5000/api/${foo}` (backticks)
-    content = content.replace(/`http:\/\/localhost:5000(.*?)`/g, '`${import.meta.env.VITE_API_URL || "http://localhost:5000"}$1`');
+    // Just in case any raw http://localhost:5000 remains:
+    content = content.replace(/http:\/\/localhost:5000/g, 'https://hackitects.onrender.com');
     
     fs.writeFileSync(file, content, 'utf8');
   });
-  console.log('Replaced all API urls!');
+  console.log('Force-replaced all local fallbacks to hackitects.onrender.com!');
 });

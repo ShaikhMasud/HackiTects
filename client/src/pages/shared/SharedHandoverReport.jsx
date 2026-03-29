@@ -14,7 +14,7 @@ const SharedHandoverReport = () => {
   useEffect(() => {
     const fetchHandover = async () => {
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/handover/shared/${shareId}`);
+        const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/handover/shared/${shareId}`);
         if (res.ok) {
           const data = await res.json();
           setHandoverData(data);

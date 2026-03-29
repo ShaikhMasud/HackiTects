@@ -43,7 +43,7 @@ const DoctorDashboard = () => {
     setAddingMed(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/patients/${selectedPatient.id}/medications`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/patients/${selectedPatient.id}/medications`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ medication: newMedication })
@@ -69,7 +69,7 @@ const DoctorDashboard = () => {
     setRecordingVitals(true);
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/patients/${selectedPatient.id}/vitals`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/patients/${selectedPatient.id}/vitals`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ bp: newVitalsBp, hr: Number(newVitalsHr), temp: Number(newVitalsTemp) })
@@ -97,7 +97,7 @@ const DoctorDashboard = () => {
         toast.error("Not authenticated");
         return;
       }
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/patients/my-patients`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/patients/my-patients`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
@@ -134,7 +134,7 @@ const DoctorDashboard = () => {
   }, [activeDoctor]);
 
   useEffect(() => {
-    const eventSource = new EventSource(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/events/stream`);
+    const eventSource = new EventSource(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/events/stream`);
 
     const handleEvent = () => {
       fetchPatients();
@@ -180,7 +180,7 @@ const DoctorDashboard = () => {
   const updatePatientStatus = async (newStatus) => {
     try {
        const token = localStorage.getItem("token");
-       const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/patients/${selectedPatient.id}/status`, {
+       const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/patients/${selectedPatient.id}/status`, {
           method: "PUT",
           headers: {
              "Content-Type": "application/json",
@@ -201,7 +201,7 @@ const DoctorDashboard = () => {
   const saveCondition = async () => {
     try {
        const token = localStorage.getItem("token");
-       const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/patients/${selectedPatient.id}/condition`, {
+       const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/patients/${selectedPatient.id}/condition`, {
           method: "PUT",
           headers: {
              "Content-Type": "application/json",
@@ -227,7 +227,7 @@ const DoctorDashboard = () => {
     if (window.confirm("Are you sure you want to completely remove this patient from the system? This action is irreversible.")) {
        try {
           const token = localStorage.getItem("token");
-          const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/patients/${id}`, { 
+          const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/patients/${id}`, { 
              method: "DELETE",
              headers: { Authorization: `Bearer ${token}` }
           });
@@ -270,7 +270,7 @@ const DoctorDashboard = () => {
     setIsHandoverOpen(true);
     setHandoverLoading(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/handover/all`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/handover/all`);
       if (res.ok) {
          const data = await res.json();
          setHandoverData(data); 
@@ -287,7 +287,7 @@ const DoctorDashboard = () => {
 
   const fetchHistory = async () => {
     try {
-       const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/handover/history`);
+       const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/handover/history`);
        if(res.ok) {
            const data = await res.json();
            setHistoryDocs(data.history || []);
@@ -304,7 +304,7 @@ const DoctorDashboard = () => {
     e.stopPropagation();
     if(!window.confirm("Are you sure you want to permanently delete this shift handover archive?")) return;
     try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/handover/history/${shareId}`, { method: "DELETE" });
+        const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/handover/history/${shareId}`, { method: "DELETE" });
         if (res.ok) {
            toast.success("Shift Snapshot successfully deleted.");
            setHistoryDocs(prev => prev.filter(d => d.shareId !== shareId));
@@ -319,7 +319,7 @@ const DoctorDashboard = () => {
     setIsHandoverOpen(true);
     setHandoverLoading(true);
     try {
-       const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:5000"}/api/handover/shared/${shareId}`);
+       const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/handover/shared/${shareId}`);
        if(res.ok) {
            const data = await res.json();
            setHandoverData(data); 
