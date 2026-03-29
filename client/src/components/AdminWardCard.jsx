@@ -1,4 +1,5 @@
 import Button from "./Button";
+import { X } from "lucide-react";
 
 const AdminWardCard = ({ name, beds, wardId, onDrillDown, onEdit, onDelete }) => {
   const total = beds.length;
@@ -19,7 +20,7 @@ const AdminWardCard = ({ name, beds, wardId, onDrillDown, onEdit, onDelete }) =>
         <div className="flex flex-col items-end gap-2">
            <div className="flex gap-2">
               <button title="Edit Ward" onClick={() => onEdit(wardId)} className="text-[10px] font-bold text-gray-500 hover:text-gray-900 border px-2 py-1 bg-white rounded uppercase">Edit</button>
-              <button title="Delete Ward" onClick={() => onDelete(wardId)} className="text-[10px] font-bold text-red-500 border border-red-200 hover:text-white hover:bg-red-500 hover:border-red-500 px-2 py-1 bg-white rounded uppercase">Rm</button>
+              <button title="Delete Ward" onClick={() => onDelete(wardId)} className="text-[10px] items-center justify-center flex font-bold text-red-500 border border-red-200 hover:text-white hover:bg-red-500 hover:border-red-500 px-2 py-1 bg-white rounded"><X size={12} strokeWidth={3}/></button>
            </div>
            <div className="text-right">
               <h3 className="text-2xl font-extrabold text-gray-900 tracking-tight leading-none">{occupancyPercent}%</h3>

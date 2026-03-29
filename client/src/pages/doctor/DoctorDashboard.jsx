@@ -192,6 +192,7 @@ const DoctorDashboard = () => {
           toast.success("Status updated!");
           setPatients(prev => prev.map(p => p.id === selectedPatient.id ? { ...p, status: newStatus } : p));
           setSelectedPatient(prev => ({...prev, status: newStatus}));
+          setIsModalOpen(false);
        }
     } catch (e) {
        toast.error("Failed to update status");

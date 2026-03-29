@@ -164,7 +164,9 @@ const StaffDashboard = () => {
       }
       
       let currentWardId = activeWard || localStorage.getItem("wardWatchActiveWard");
-      if (!currentWardId && wardsData.length > 0) {
+      
+      const wardExists = wardsData.some(w => w._id === currentWardId);
+      if ((!currentWardId || !wardExists) && wardsData.length > 0) {
         currentWardId = wardsData[0]._id;
       }
       if (currentWardId) {
