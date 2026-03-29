@@ -231,7 +231,8 @@ const AdminDashboard = () => {
               name: b.occupantPatientId.patientName,
               condition: b.occupantPatientId.primaryCondition || 'Standard',
               doctor: b.occupantPatientId.responsibleDoctorId ? `Dr. ${b.occupantPatientId.responsibleDoctorId.lastName}` : 'Assigned Provider',
-              admitDate: b.occupantPatientId.admissionDate ? b.occupantPatientId.admissionDate.split('T')[0] : 'Pending'
+              admitDate: b.occupantPatientId.admissionDate ? b.occupantPatientId.admissionDate.split('T')[0] : 'Pending',
+              los: b.occupantPatientId.admissionDate ? Math.floor((new Date() - new Date(b.occupantPatientId.admissionDate)) / (1000 * 60 * 60 * 24)) : 0
           } : null,
           since: b.cleaningStartTime ? 'Cleaning' : null
       })));
@@ -560,6 +561,10 @@ const AdminDashboard = () => {
                       <div>
                         <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Admitted Target</p>
                         <p className="text-sm font-bold text-gray-900 mt-1">{selectedBed.patient.admitDate}</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Length of Stay</p>
+                        <p className="text-sm font-bold text-blue-900 mt-1">{selectedBed.patient.los} Days</p>
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest">Status Override</p>
