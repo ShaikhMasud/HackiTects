@@ -30,7 +30,9 @@ const PatientClinicalTable = ({ patients, onReview, onReport, onDelete }) => {
                 <tr key={p.id} className="hover:bg-gray-50 transition-colors">
                   <td className="px-8 py-6 whitespace-nowrap">
                     <p className="text-base font-extrabold text-gray-900 tracking-tight leading-tight">{p.name}</p>
-                    <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-widest mt-1">Bed {p.bed} • {p.age} Y/O {p.gender}</p>
+                    <p className="text-[11px] font-extrabold text-gray-500 uppercase tracking-widest mt-1">
+                      {['cleared_for_discharge', 'discharged'].includes(p.status) ? 'VACATED' : (p.bed?.toString().toLowerCase() === 'queue' ? 'PENDING BED' : `BED ${p.bed}`)} • {p.age} Y/O {p.gender}
+                    </p>
                   </td>
                   <td className="px-8 py-6 whitespace-nowrap">
                     <p className="text-sm font-bold text-gray-800 tracking-tight leading-tight">{p.condition}</p>

@@ -406,8 +406,14 @@ const DoctorDashboard = () => {
                   </span>
               </div>
               <div className="flex items-center gap-2 mt-1">
-                 <span className="bg-blue-600 text-white px-2 py-0.5 rounded shadow-sm text-[10px] font-extrabold uppercase tracking-widest text-center">BED {selectedPatient.bed}</span>
-                 <p className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest">{selectedPatient.ward} • {selectedPatient.age} Y/O {selectedPatient.gender}</p>
+                 <span className={`px-2 py-0.5 rounded shadow-sm text-[10px] font-extrabold uppercase tracking-widest text-center ${['cleared_for_discharge', 'discharged'].includes(selectedPatient.status) ? 'bg-gray-500 text-white' : 'bg-blue-600 text-white'}`}>
+                    {['cleared_for_discharge', 'discharged'].includes(selectedPatient.status) 
+                      ? 'OFFBOARDING / VACATED' 
+                      : (selectedPatient.bed?.toString().toLowerCase() === 'queue' ? 'PENDING ASSIGNMENT' : `BED ${selectedPatient.bed}`)}
+                 </span>
+                 <p className="text-[11px] font-extrabold text-gray-400 uppercase tracking-widest">
+                    {['cleared_for_discharge', 'discharged'].includes(selectedPatient.status) ? 'TRANSIT / RELEASE' : selectedPatient.ward} • {selectedPatient.age} Y/O {selectedPatient.gender}
+                 </p>
               </div>
               
               <div className="grid grid-cols-2 gap-8 mt-8 pt-8 border-t border-gray-100">
