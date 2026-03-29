@@ -102,7 +102,8 @@ const DoctorDashboard = () => {
       });
       if (res.ok) {
          const data = await res.json();
-         const mapped = data.map(p => ({
+         const sortedData = data.sort((a, b) => new Date(b.createdAt || b.admissionDate || 0) - new Date(a.createdAt || a.admissionDate || 0));
+         const mapped = sortedData.map(p => ({
             id: p._id,
             name: p.patientName,
             bed: p.bed || 'Queue',
