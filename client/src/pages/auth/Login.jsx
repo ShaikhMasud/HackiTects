@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "react-toastify";
 import {
     Eye,
@@ -22,6 +22,24 @@ export default function Login() {
 
     const [showPassword, setShowPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+
+    useEffect(() => {
+        const token = localStorage.getItem("token");
+        const userStr = localStorage.getItem("user");
+        
+        if (token && userStr) {
+            try {
+                const user = JSON.parse(userStr);
+                if (user.role === "nurse") navigate("/staff");
+                else if (user.role === "admin") navigate("/admin");
+                else if (user.role === "doctor") navigate("/doctor");
+            } catch (e) {
+                // Failsafe clear
+                localStorage.removeItem("token");
+                localStorage.removeItem("user");
+            }
+        }
+    }, [navigate]);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
