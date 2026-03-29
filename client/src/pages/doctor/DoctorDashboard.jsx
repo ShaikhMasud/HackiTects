@@ -24,6 +24,9 @@ const DoctorDashboard = () => {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historyDocs, setHistoryDocs] = useState([]);
   const [historyFilter, setHistoryFilter] = useState("all");
+  const [doctorsList, setDoctorsList] = useState([]);
+  const [targetDoctorId, setTargetDoctorId] = useState("");
+  const [isTransferring, setIsTransferring] = useState(false);
   const [editingCondition, setEditingCondition] = useState(false);
   const [tempCondition, setTempCondition] = useState("");
 
@@ -132,6 +135,16 @@ const DoctorDashboard = () => {
 
   useEffect(() => {
     fetchPatients();
+    const fetchDoctors = async () => {
+       try {
+          const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/staff/doctors`);
+          if(res.ok) {
+             const data = await res.json();
+             setDoctorsList(data.doctors || []);
+          }
+       } catch(e) { }
+    };
+    fetchDoctors();
   }, [activeDoctor]);
 
   useEffect(() => {
@@ -287,6 +300,35 @@ const DoctorDashboard = () => {
     }
   };
 
+  const handleHandoverAndReassign = async () => {
+    if (!targetDoctorId) return toast.error("Please select an incoming doctor from the dropdown.");
+    setIsTransferring(true);
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/patients/transfer`, {
+         method: "POST",
+         headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`
+         },
+         body: JSON.stringify({ nextDoctorId: targetDoctorId })
+      });
+      if(res.ok) {
+         const d = await res.json();
+         toast.success(`Transferred ${d.count} patients. Have a good rest!`);
+         setPatients([]);
+         setIsHandoverOpen(false);
+         setTargetDoctorId("");
+      } else {
+         toast.error("Failed to transfer patients");
+      }
+    } catch(e) {
+      toast.error("Network error transferring patients.");
+    } finally {
+      setIsTransferring(false);
+    }
+  };
+
   const fetchHistory = async () => {
     try {
        const res = await fetch(`${import.meta.env.VITE_API_URL || "https://hackitects.onrender.com"}/api/handover/history`);
@@ -364,13 +406,26 @@ const DoctorDashboard = () => {
            >
              View Past Shifts
            </Button>
-           <Button 
-             variant="outline" 
-             onClick={handleGenerateHandover}
-             className="w-full sm:w-auto text-xs font-extrabold uppercase tracking-widest border-2 border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white px-6 py-3 shadow-none transition-colors"
-           >
-             Generate Live Handover
-           </Button>
+           
+           <div className="flex items-center w-full sm:w-auto bg-gray-50 border-2 border-gray-200 rounded overflow-hidden">
+             <select 
+               className="bg-transparent px-4 py-3 text-[10px] font-extrabold text-gray-900 uppercase tracking-widest outline-none transition-colors w-full sm:w-auto border-r border-gray-200 appearance-none cursor-pointer"
+               value={targetDoctorId}
+               onChange={(e) => setTargetDoctorId(e.target.value)}
+             >
+                <option value="">-- SELECT INCOMING DOCTOR --</option>
+                {doctorsList.map((doc, idx) => (
+                   <option key={idx} value={doc._id}>DR. {doc.firstName} {doc.lastName}</option>
+                ))}
+             </select>
+             <Button 
+               variant="primary" 
+               onClick={targetDoctorId ? handleHandoverAndReassign : handleGenerateHandover}
+               className="w-full sm:w-auto text-xs font-extrabold uppercase tracking-widest px-6 py-3 shadow-none transition-colors border-none rounded-none"
+             >
+               {targetDoctorId ? "Transfer Shift" : "Generate Live Handover"}
+             </Button>
+           </div>
            <Button 
              variant="outline" 
              onClick={handleLogout}
@@ -734,7 +789,7 @@ const DoctorDashboard = () => {
                             {handoverData.escalations?.critical?.map((e, i) => (
                                 <div key={`crit-${i}`} className="border-l-4 border-red-600 bg-red-50 p-5 flex justify-between items-start shadow-sm">
                                     <div>
-                                        <span className="inline-block text-[9px] font-extrabold text-red-900 uppercase tracking-widest bg-red-200 px-2 py-1 rounded-sm mr-2 mb-2">{e.type.replace(/-/g, ' ')}</span>
+                                        <span className="inline-block text-[9px] font-extrabold text-red-900 uppercase tracking-widest bg-red-200 px-2 py-1 rounded-sm mr-2 mb-2">{e.severity ? e.severity : 'CRITICAL'}</span>
                                         <span className="text-sm font-bold text-gray-900 leading-snug block">{e.description || "System flagged an actionable escalation."}</span>
                                         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2 m-0">Location Anchor: {(e.wardId && e.wardId.wardName) ? e.wardId.wardName : "Global Queue"} — Bed {(e.relatedBedId && e.relatedBedId.bedNumber) ? e.relatedBedId.bedNumber : "Unassigned"}</p>
                                     </div>
@@ -744,7 +799,7 @@ const DoctorDashboard = () => {
                             {handoverData.escalations?.warnings?.map((e, i) => (
                                 <div key={`warn-${i}`} className="border-l-4 border-orange-500 bg-orange-50 p-5 flex justify-between items-start shadow-sm">
                                     <div>
-                                        <span className="inline-block text-[9px] font-extrabold text-orange-900 uppercase tracking-widest bg-orange-200 px-2 py-1 rounded-sm mr-2 mb-2">{e.type.replace(/-/g, ' ')}</span>
+                                        <span className="inline-block text-[9px] font-extrabold text-orange-900 uppercase tracking-widest bg-orange-200 px-2 py-1 rounded-sm mr-2 mb-2">{e.severity ? e.severity : 'WARNING'}</span>
                                         <span className="text-sm font-bold text-gray-900 leading-snug block">{e.description || "System flagged a workflow delay."}</span>
                                         <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2 m-0">Location Anchor: {(e.wardId && e.wardId.wardName) ? e.wardId.wardName : "Global Queue"} — Bed {(e.relatedBedId && e.relatedBedId.bedNumber) ? e.relatedBedId.bedNumber : "Unassigned"}</p>
                                     </div>
@@ -837,21 +892,39 @@ const DoctorDashboard = () => {
              </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-gray-200">
-             <Button 
-               variant="primary" 
-               onClick={handleGeneratePDF}
-               className="flex-1 py-4 text-xs font-extrabold uppercase tracking-widest"
-             >
-               Print / Export PDF
-             </Button>
-             <Button 
-               variant="outline" 
-               onClick={handleShareLink}
-               className="flex-1 py-4 text-xs font-extrabold uppercase tracking-widest text-gray-700 bg-white border-2 border-gray-200 hover:border-gray-900"
-             >
-               Copy Share Link
-             </Button>
+          <div className="flex flex-col gap-4 pt-6 border-t border-gray-200 mt-6">
+             <div className="flex flex-col sm:flex-row gap-3 border-b border-gray-100 pb-6">
+                <div className="flex-1">
+                   <p className="text-[10px] font-extrabold text-gray-500 uppercase tracking-widest mb-2">Relieving Attending Physician</p>
+                   <select className="w-full px-4 py-3 border-2 border-gray-200 rounded focus:ring-0 focus:border-gray-900 outline-none transition text-xs font-bold text-gray-900 bg-white" value={targetDoctorId} onChange={(e) => setTargetDoctorId(e.target.value)}>
+                      <option value="">-- Assign Shift to Incoming Doctor --</option>
+                      {doctorsList.map((doc, idx) => (
+                         <option key={idx} value={doc._id}>Dr. {doc.firstName} {doc.lastName} ({doc.specialty || 'General'})</option>
+                      ))}
+                   </select>
+                </div>
+                <div className="flex items-end">
+                   <Button onClick={handleHandoverAndReassign} disabled={isTransferring} className="py-3 px-6 h-[46px] shadow-none bg-blue-900 hover:bg-blue-950 text-[10px] font-extrabold text-white uppercase tracking-widest border-none whitespace-nowrap">
+                      {isTransferring ? 'Transferring Shift...' : 'Transfer Shift'}
+                   </Button>
+                </div>
+             </div>
+             <div className="flex flex-col sm:flex-row gap-3">
+                <Button 
+                  variant="primary" 
+                  onClick={handleGeneratePDF}
+                  className="flex-1 py-4 text-xs font-extrabold uppercase tracking-widest shadow-none"
+                >
+                  Print / Export PDF
+                </Button>
+                <Button 
+                  variant="outline" 
+                  onClick={handleShareLink}
+                  className="flex-1 py-4 text-xs font-extrabold uppercase tracking-widest text-gray-700 bg-white border-2 border-gray-200 hover:border-gray-900 shadow-none"
+                >
+                  Copy Share Link
+                </Button>
+             </div>
           </div>
         </div>
         )}

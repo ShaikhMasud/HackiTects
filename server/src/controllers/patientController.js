@@ -204,3 +204,28 @@ exports.addMedication = async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 };
+
+exports.transferAllPatients = async (req, res) => {
+  try {
+    const currentDoctorId = req.user.id;
+    const { nextDoctorId } = req.body;
+    
+    if (!nextDoctorId) {
+       return res.status(400).json({ success: false, message: "Incoming doctor ID is required." });
+    }
+
+    const Patient = require("../models/Patients");
+    const { sendEvent } = require("../sse/eventStream");
+
+    const result = await Patient.updateMany(
+      { responsibleDoctorId: currentDoctorId },
+      { $set: { responsibleDoctorId: nextDoctorId } }
+    );
+
+    sendEvent("doctor-assigned", { action: "bulk_transfer", from: currentDoctorId, to: nextDoctorId });
+
+    res.json({ success: true, message: `Successfully transferred ${result.modifiedCount} patients.`, count: result.modifiedCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};

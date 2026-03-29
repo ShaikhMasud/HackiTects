@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const { getDoctorPatients, updatePatientStatus, deletePatient, addVitals, addMedication } = require("../controllers/patientController");
+const { getDoctorPatients, updatePatientStatus, deletePatient, addVitals, addMedication, transferAllPatients } = require("../controllers/patientController");
 const { verifyToken } = require("../middleware/authMiddleware");
 
 router.get("/my-patients", verifyToken, getDoctorPatients);
@@ -10,5 +10,6 @@ router.put("/:patientId/condition", verifyToken, require("../controllers/patient
 router.post("/:patientId/vitals", verifyToken, addVitals);
 router.post("/:patientId/medications", verifyToken, addMedication);
 router.delete("/:patientId", verifyToken, deletePatient);
+router.post("/transfer", verifyToken, transferAllPatients);
 
 module.exports = router;
