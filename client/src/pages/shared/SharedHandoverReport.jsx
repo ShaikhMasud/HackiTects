@@ -163,7 +163,7 @@ const SharedHandoverReport = () => {
                                 <div>
                                     <span className="inline-block text-[9px] font-extrabold text-red-900 uppercase tracking-widest bg-red-200 px-2 py-1 rounded-sm mr-2 mb-2">{e.type.replace(/-/g, ' ')}</span>
                                     <span className="text-sm font-bold text-gray-900 leading-snug block">{e.description || "System flagged an actionable escalation."}</span>
-                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2 m-0">Location Anchor: {(e.wardId && e.wardId.wardName) ? e.wardId.wardName : "Unknown"} — Bed {(e.relatedBedId && e.relatedBedId.bedNumber) ? e.relatedBedId.bedNumber : "N/A"}</p>
+                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2 m-0">Location Anchor: {(e.wardId && e.wardId.wardName) ? e.wardId.wardName : "Global Queue"} — Bed {(e.relatedBedId && e.relatedBedId.bedNumber) ? e.relatedBedId.bedNumber : "Unassigned"}</p>
                                 </div>
                                 <span className="text-[10px] font-extrabold text-gray-500 tracking-widest whitespace-nowrap">{new Date(e.createdAt).toLocaleTimeString()}</span>
                             </div>
@@ -173,7 +173,7 @@ const SharedHandoverReport = () => {
                                 <div>
                                     <span className="inline-block text-[9px] font-extrabold text-orange-900 uppercase tracking-widest bg-orange-200 px-2 py-1 rounded-sm mr-2 mb-2">{e.type.replace(/-/g, ' ')}</span>
                                     <span className="text-sm font-bold text-gray-900 leading-snug block">{e.description || "System flagged a workflow delay."}</span>
-                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2 m-0">Location Anchor: {(e.wardId && e.wardId.wardName) ? e.wardId.wardName : "Unknown"} — Bed {(e.relatedBedId && e.relatedBedId.bedNumber) ? e.relatedBedId.bedNumber : "N/A"}</p>
+                                    <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2 m-0">Location Anchor: {(e.wardId && e.wardId.wardName) ? e.wardId.wardName : "Global Queue"} — Bed {(e.relatedBedId && e.relatedBedId.bedNumber) ? e.relatedBedId.bedNumber : "Unassigned"}</p>
                                 </div>
                                 <span className="text-[10px] font-extrabold text-gray-500 tracking-widest whitespace-nowrap">{new Date(e.createdAt).toLocaleTimeString()}</span>
                             </div>

@@ -142,7 +142,9 @@ exports.createAdmission = async (req, res) => {
 exports.getWardAdmissions = async (req, res) => {
   const admissions = await Admission.find({
     wardId: req.params.wardId,
-  }).populate("patientId");
+  })
+  .populate("patientId")
+  .populate("wardId", "wardName");
 
   res.json(admissions);
 };

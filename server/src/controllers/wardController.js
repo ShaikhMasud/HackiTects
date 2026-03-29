@@ -32,7 +32,10 @@ exports.getWardDetails = async (req, res) => {
   const { wardId } = req.params;
 
   const ward = await Ward.findById(wardId);
-  const beds = await Bed.find({ wardId }).populate("occupantPatientId");
+  const beds = await Bed.find({ wardId }).populate({
+     path: "occupantPatientId",
+     populate: { path: "responsibleDoctorId", select: "firstName lastName" }
+  });
 
   res.json({ ward, beds });
 };

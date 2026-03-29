@@ -72,6 +72,26 @@ const StaffDashboard = () => {
        return;
     }
 
+    if (!admissionForm.age || isNaN(admissionForm.age) || admissionForm.age < 0 || admissionForm.age > 120) {
+       toast.error("Patient age must be a valid number between 0 and 120.");
+       return;
+    }
+
+    if (admissionForm.bp && !/^\d{2,3}\/\d{2,3}$/.test(admissionForm.bp)) {
+       toast.error("Blood pressure must be in format 'Systolic/Diastolic' (e.g. 120/80).");
+       return;
+    }
+
+    if (admissionForm.hr && (isNaN(admissionForm.hr) || admissionForm.hr < 30 || admissionForm.hr > 250)) {
+       toast.error("Heart rate must be between 30 and 250 bpm.");
+       return;
+    }
+
+    if (admissionForm.temp && (isNaN(admissionForm.temp) || admissionForm.temp < 90 || admissionForm.temp > 112)) {
+       toast.error("Temperature must be a valid reading between 90.0°F and 112.0°F.");
+       return;
+    }
+
     const finalWardId = admissionForm.wardId || activeWard;
     const finalDoctorId = admissionForm.doctorId || (doctorsList.length > 0 ? doctorsList[0]._id : "");
 
@@ -176,8 +196,8 @@ const StaffDashboard = () => {
             patient: b.occupantPatientId ? {
                 name: b.occupantPatientId.patientName,
                 condition: b.occupantPatientId.primaryCondition || 'Standard Admission',
-                doctor: 'Assigned Provider',
-                admitDate: b.occupantPatientId.admissionDate ? b.occupantPatientId.admissionDate.split('T')[0] : 'N/A',
+                doctor: b.occupantPatientId.responsibleDoctorId ? `Dr. ${b.occupantPatientId.responsibleDoctorId.lastName}` : 'Assigned Provider',
+                admitDate: b.occupantPatientId.admissionDate ? b.occupantPatientId.admissionDate.split('T')[0] : 'Pending',
                 los: b.occupantPatientId.admissionDate ? Math.floor((new Date() - new Date(b.occupantPatientId.admissionDate)) / (1000 * 60 * 60 * 24)) : 0
             } : null,
             since: b.cleaningStartTime ? 'Cleaning' : null
@@ -199,7 +219,7 @@ const StaffDashboard = () => {
       
       if(admRes.ok) {
          const a = await admRes.json();
-         setAdmissions(a.map(x => ({ id: x._id, patientName: x.patientId?.patientName || 'Unknown', source: x.priority, priority: x.priority, targetWard: x.wardId, status: x.status })));
+         setAdmissions(a.map(x => ({ id: x._id, patientName: x.patientId?.patientName || 'Unknown', source: x.priority, priority: x.priority, targetWard: x.wardId?._id || x.wardId, targetWardName: x.wardId?.wardName || "Unknown", status: x.status })));
       } else { setAdmissions([]); }
       
       if(escRes.ok) {
@@ -346,6 +366,7 @@ const StaffDashboard = () => {
   const navigate = useNavigate();
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     navigate("/");
   };
 
@@ -362,8 +383,8 @@ const StaffDashboard = () => {
       {/* Header & Ward Selector */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-gray-200 pb-6">
         <div>
-          <h2 className="text-3xl font-extrabold tracking-tight text-gray-900">WARD DASHBOARD</h2>
-          <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest mt-2">Live mapping & capacity forecasts</p>
+          <h2 className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900">WARD COMMAND</h2>
+          <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest mt-2">Live Mapping & Capacity Dashboard</p>
         </div>
         <div className="flex w-full md:w-auto flex-col md:flex-row gap-4 items-start md:items-center shrink-0">
           <select
@@ -442,11 +463,32 @@ const StaffDashboard = () => {
           admissions={admissions.filter(a => a.targetWard === activeWard && a.status === 'pending')}
           onArrive={async (id) => {
              try {
-                await fetch(`http://localhost:5000/api/admissions/${id}/arrived`, {method: "PUT"});
+                const res = await fetch(`http://localhost:5000/api/admissions/${id}/arrived`, {method: "PUT"});
+                if (!res.ok) {
+                   const data = await res.json();
+                   toast.error(data.message || "No beds available");
+                   return;
+                }
+                toast.success("Admission arrived and assigned.");
                 fetchDashboardData();
-             }catch(e){}
+             }catch(e){ toast.error("Network connection failed."); }
           }}
-          onDiscard={(id) => setAdmissions(prev => prev.filter(item => item.id !== id))}
+          onDiscard={async (id) => {
+             if (window.confirm("Are you sure you want to discard this pending admission?")) {
+                 try {
+                     const res = await fetch(`http://localhost:5000/api/admissions/${id}`, { method: "DELETE" });
+                     if (res.ok) {
+                         toast.success("Pending admission discarded successfully.");
+                         setAdmissions(prev => prev.filter(item => item.id !== id));
+                         fetchDashboardData();
+                     } else {
+                         toast.error("Failed to discard admission.");
+                     }
+                 } catch(e) {
+                     toast.error("Network error when discarding admission.");
+                 }
+             }
+          }}
         />
       </div>
 

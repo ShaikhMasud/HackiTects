@@ -13,7 +13,7 @@ exports.getDoctorPatients = async (req, res) => {
         const bed = await require("../models/Bed").findOne({ occupantPatientId: p._id }).populate("wardId");
         return {
           ...p.toObject(),
-          bed: bed ? bed.bedNumber : "TBD",
+          bed: bed ? bed.bedNumber : "Queue",
           wardId: bed ? bed.wardId : null,
         };
       })
@@ -79,6 +79,31 @@ exports.updatePatientCondition = async (req, res) => {
       { new: true }
     );
     res.json({ success: true, patient: updated });
+  } catch (err) {
+    res.status(500).json({ error: err.message, success: false });
+  }
+};
+
+exports.deletePatient = async (req, res) => {
+  try {
+    const { patientId } = req.params;
+    const Bed = require("../models/Bed");
+    const Discharge = require("../models/Discharge");
+    const Admission = require("../models/Admission");
+    const { sendEvent } = require("../sse/eventStream");
+
+    // Clear bed occupancy
+    await Bed.findOneAndUpdate({ occupantPatientId: patientId }, { status: 'cleaning', occupantPatientId: null, cleaningStartTime: new Date() });
+    
+    // Clean up queues
+    await Discharge.deleteMany({ patientId });
+    await Admission.deleteMany({ patientId });
+
+    // Delete Patient record
+    await Patient.findByIdAndDelete(patientId);
+
+    sendEvent("patient-discharged", { patientId });
+    res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: err.message, success: false });
   }

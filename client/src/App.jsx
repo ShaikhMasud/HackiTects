@@ -9,6 +9,7 @@ import StaffDashboard from "./pages/staff/StaffDashboard";
 import DoctorDashboard from "./pages/doctor/DoctorDashboard";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import SharedHandoverReport from "./pages/shared/SharedHandoverReport";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 function App() {
   return (
@@ -31,9 +32,9 @@ function App() {
           <Route path="/" element={<Login />} />
           <Route path="/forgotpassword" element={<ForgotPassword />} />
           <Route path="/resetpassword" element={<ResetPassword />} />
-          <Route path="/staff" element={<StaffDashboard />} />
-          <Route path="/doctor" element={<DoctorDashboard />} />
-          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/staff" element={<ProtectedRoute allowedRoles={['nurse']}><StaffDashboard /></ProtectedRoute>} />
+          <Route path="/doctor" element={<ProtectedRoute allowedRoles={['doctor']}><DoctorDashboard /></ProtectedRoute>} />
+          <Route path="/admin" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
           <Route path="/shared-report/:shareId" element={<SharedHandoverReport />} />
         </Routes>
       </BrowserRouter>

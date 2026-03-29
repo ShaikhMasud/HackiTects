@@ -69,6 +69,7 @@ const AdminDashboard = () => {
 
   const handleLogout = () => {
      localStorage.removeItem("token");
+     localStorage.removeItem("user");
      navigate("/");
   };
 
@@ -229,8 +230,8 @@ const AdminDashboard = () => {
           patient: b.occupantPatientId ? {
               name: b.occupantPatientId.patientName,
               condition: b.occupantPatientId.primaryCondition || 'Standard',
-              doctor: 'Assigned Provider',
-              admitDate: b.occupantPatientId.admissionDate ? b.occupantPatientId.admissionDate.split('T')[0] : 'N/A'
+              doctor: b.occupantPatientId.responsibleDoctorId ? `Dr. ${b.occupantPatientId.responsibleDoctorId.lastName}` : 'Assigned Provider',
+              admitDate: b.occupantPatientId.admissionDate ? b.occupantPatientId.admissionDate.split('T')[0] : 'Pending'
           } : null,
           since: b.cleaningStartTime ? 'Cleaning' : null
       })));
@@ -328,7 +329,7 @@ const AdminDashboard = () => {
     <>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-gray-200 pb-8">
         <div>
-          <h2 className="text-4xl font-extrabold tracking-tight text-gray-900">ADMINISTRATION VIEW</h2>
+          <h2 className="text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900">SYSTEM ADMINISTRATION</h2>
           <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-2">Hospital Executive Analytics</p>
         </div>
         <div className="flex items-center gap-3 relative">
@@ -479,20 +480,20 @@ const AdminDashboard = () => {
 
     return (
       <div className="space-y-8 animate-in fade-in duration-500">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 border-b border-gray-200 pb-6">
-          <div>
-            <div className="flex items-center gap-3 mb-2">
-              <Button variant="ghost" onClick={handleBackToGlobal} className="px-0 text-blue-900 hover:bg-transparent shadow-none text-[10px] font-extrabold uppercase tracking-widest underline decoration-2 underline-offset-4">
-                &lt; Back to Hospital Center
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-gray-200 pb-6">
+          <div className="w-full">
+            <div className="flex items-center gap-3 mb-4">
+              <Button variant="ghost" onClick={handleBackToGlobal} className="px-0 text-gray-400 hover:text-gray-900 hover:bg-transparent shadow-none text-[10px] font-extrabold uppercase tracking-widest transition-colors">
+                &larr; Back to Hospital Center
               </Button>
             </div>
-            <h2 className="text-3xl font-extrabold tracking-tight text-gray-900 uppercase">{drilledWard} OVERVIEW</h2>
-            <p className="text-sm font-bold text-gray-500 uppercase tracking-widest mt-2 flex items-center gap-4">
-              <span>Map Drill-Down Analysis</span>
-              <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-800 text-[9px] rounded font-bold uppercase tracking-widest">
+            <h2 className="text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900 uppercase">{drilledWard} OVERVIEW</h2>
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4 mt-2">
+              <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest">Map Drill-Down Analysis</p>
+              <span className="inline-flex items-center px-2.5 py-1 bg-gray-900 text-white text-[9px] rounded font-extrabold uppercase tracking-widest shadow-sm">
                 Read-Only Audit Mode
               </span>
-            </p>
+            </div>
           </div>
         </div>
 

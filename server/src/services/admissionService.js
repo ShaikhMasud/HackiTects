@@ -8,6 +8,7 @@ exports.getAdmissionsQueue = async (wardId) => {
     status: "pending",
   })
     .populate("patientId")
+    .populate("wardId", "wardName")
     .sort({ createdAt: 1 });
 
   // Apply priority sort

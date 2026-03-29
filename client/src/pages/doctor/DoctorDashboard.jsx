@@ -23,6 +23,7 @@ const DoctorDashboard = () => {
   const [handoverLoading, setHandoverLoading] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historyDocs, setHistoryDocs] = useState([]);
+  const [historyFilter, setHistoryFilter] = useState("all");
   const [editingCondition, setEditingCondition] = useState(false);
   const [tempCondition, setTempCondition] = useState("");
 
@@ -104,12 +105,12 @@ const DoctorDashboard = () => {
          const mapped = data.map(p => ({
             id: p._id,
             name: p.patientName,
-            bed: p.bed || 'TBD',
+            bed: p.bed || 'Queue',
             ward: p.wardId?.wardName || 'Unassigned',
             age: p.age || 45,
             gender: p.gender || 'M',
-            condition: p.primaryCondition || 'N/A',
-            admissionDate: p.admissionDate ? p.admissionDate.split('T')[0] : 'N/A',
+            condition: p.primaryCondition || 'Undiagnosed',
+            admissionDate: p.admissionDate ? p.admissionDate.split('T')[0] : 'Pending',
             status: p.status || 'admitted',
             vitals: p.vitals || { bp: '120/80', hr: 75, temp: '98.6°F' },
             vitalsHistory: p.vitalsHistory || [],
@@ -222,11 +223,38 @@ const DoctorDashboard = () => {
   };
 
 
+  const handleDeletePatient = async (id) => {
+    if (window.confirm("Are you sure you want to completely remove this patient from the system? This action is irreversible.")) {
+       try {
+          const token = localStorage.getItem("token");
+          const res = await fetch(`http://localhost:5000/api/patients/${id}`, { 
+             method: "DELETE",
+             headers: { Authorization: `Bearer ${token}` }
+          });
+          if (res.ok) {
+             toast.success("Patient record permanently removed.");
+             setPatients(prev => prev.filter(p => p.id !== id));
+          } else {
+             toast.error("Failed to remove patient.");
+          }
+       } catch (e) {
+          toast.error("Network error when removing patient.");
+       }
+    }
+  };
+
   const handleGeneratePDF = useReactToPrint({
     contentRef: handoverPrintRef,
-    // fallback for v2:
     content: () => handoverPrintRef.current,
     documentTitle: `Shift_Handover_${activeDoctor.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}`,
+  });
+
+  const clinicalReportPrintRef = useRef(null);
+  const handlePrintClinicalReport = useReactToPrint({
+    contentRef: clinicalReportPrintRef,
+    content: () => clinicalReportPrintRef.current,
+    documentTitle: `Clinical_Report_${new Date().toISOString().split('T')[0]}`,
+    onAfterPrint: () => setReportData(null),
   });
 
   const handleShareLink = () => {
@@ -272,6 +300,20 @@ const DoctorDashboard = () => {
     }
   };
 
+  const handleDeleteHandover = async (shareId, e) => {
+    e.stopPropagation();
+    if(!window.confirm("Are you sure you want to permanently delete this shift handover archive?")) return;
+    try {
+        const res = await fetch(`http://localhost:5000/api/handover/history/${shareId}`, { method: "DELETE" });
+        if (res.ok) {
+           toast.success("Shift Snapshot successfully deleted.");
+           setHistoryDocs(prev => prev.filter(d => d.shareId !== shareId));
+        } else {
+           toast.error("Failed to delete snapshot");
+        }
+    } catch(err) { toast.error("Network Error"); }
+  };
+
   const loadHistoricalHandover = async (shareId) => {
     setIsHistoryOpen(false);
     setIsHandoverOpen(true);
@@ -292,6 +334,7 @@ const DoctorDashboard = () => {
   const navigate = useNavigate();
   const handleLogout = () => {
     localStorage.removeItem("token");
+    localStorage.removeItem("user");
     navigate("/");
   };
 
@@ -308,30 +351,30 @@ const DoctorDashboard = () => {
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6 border-b border-gray-200 pb-6">
         <div>
-          <h2 className="text-3xl font-extrabold tracking-tight text-gray-900">ATTENDING PHYSICIAN</h2>
-          <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest mt-2">Clinical Overview & Approvals</p>
+          <h2 className="text-3xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-gray-900 via-gray-700 to-gray-900">CLINICAL COMMAND CENTER</h2>
+          <p className="text-sm font-semibold text-gray-500 uppercase tracking-widest mt-2">Specialist Overview & Approvals</p>
         </div>
-        <div className="flex space-x-4 items-center">
-           <Button 
-             variant="outline" 
-             onClick={handleLogout}
-             className="text-xs font-extrabold uppercase tracking-widest border-2 border-gray-200 text-gray-900 px-4 py-3 shadow-none transition-colors hover:bg-red-50 hover:text-red-900 hover:border-red-200"
-           >
-             Logout
-           </Button>
+        <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4 items-start sm:items-center">
            <Button 
              variant="outline" 
              onClick={fetchHistory}
-             className="text-xs font-extrabold uppercase tracking-widest border-2 border-gray-200 text-gray-900 hover:bg-gray-100 px-6 py-3 shadow-none transition-colors"
+             className="w-full sm:w-auto text-xs font-extrabold uppercase tracking-widest border-2 border-gray-200 text-gray-900 hover:bg-gray-100 px-6 py-3 shadow-none transition-colors"
            >
              View Past Shifts
            </Button>
            <Button 
              variant="outline" 
              onClick={handleGenerateHandover}
-             className="text-xs font-extrabold uppercase tracking-widest border-2 border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white px-6 py-3 shadow-none transition-colors"
+             className="w-full sm:w-auto text-xs font-extrabold uppercase tracking-widest border-2 border-gray-900 text-gray-900 hover:bg-gray-900 hover:text-white px-6 py-3 shadow-none transition-colors"
            >
              Generate Live Handover
+           </Button>
+           <Button 
+             variant="outline" 
+             onClick={handleLogout}
+             className="w-full sm:w-auto text-xs font-extrabold uppercase tracking-widest border-2 border-gray-200 text-gray-900 px-6 py-3 shadow-none transition-colors hover:bg-red-50 hover:text-red-900 hover:border-red-200"
+           >
+             Logout
            </Button>
         </div>
       </div>
@@ -345,7 +388,7 @@ const DoctorDashboard = () => {
 
       {/* Patient Clinical Table */}
       <div className="w-full">
-        <PatientClinicalTable patients={filteredPatients} onReview={handleReview} onReport={(patient, type) => setReportData({ patient, type })} />
+        <PatientClinicalTable patients={filteredPatients} onReview={handleReview} onReport={(patient, type) => setReportData({ patient, type })} onDelete={handleDeletePatient} />
       </div>
 
       {/* Complete Chart Review Modal */}
@@ -499,57 +542,63 @@ const DoctorDashboard = () => {
       {reportData && (
         <Modal isOpen={!!reportData} onClose={() => setReportData(null)} title={reportData.type === 'discharge' ? `DISCHARGE SUMMARY: ${reportData.patient.name}` : `CLINICAL HISTORY: ${reportData.patient.name}`}>
           <div className="space-y-6">
-             <div className="bg-gray-50 border border-gray-200 p-6 rounded relative">
+             <div ref={clinicalReportPrintRef} className="bg-white border md:border-gray-200 p-8 rounded relative min-h-[400px] print:p-8 print:w-full font-sans">
                 <div className="flex justify-between items-start mb-6 border-b border-gray-200 pb-4">
                    <div>
                      <h3 className="text-xl font-extrabold text-gray-900 uppercase tracking-tight">{reportData.patient.name}</h3>
-                     <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mt-1">ID: {reportData.patient.id} • Bed: {reportData.patient.bed}</p>
+                     <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-1">ID: {reportData.patient.id} • Bed Nbr: {reportData.patient.bed}</p>
                    </div>
                    <div className="text-right">
-                     <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Generated</p>
-                     <p className="text-sm font-black text-gray-900">{new Date().toLocaleDateString()}</p>
+                     <p className="text-[9px] font-extrabold text-gray-400 uppercase tracking-widest">Document Generated On</p>
+                     <p className="text-sm font-black text-gray-900">{new Date().toLocaleString()}</p>
                    </div>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-6">
                    <div>
-                      <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1">Primary Diagnosis</p>
+                      <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5 border-b border-gray-100 pb-1">Primary Clinical Diagnosis</p>
                       <p className="text-sm font-bold text-gray-900">{reportData.patient.condition}</p>
                    </div>
                    <div className="grid grid-cols-2 gap-4">
                      <div>
-                        <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1">Latest Vitals</p>
-                        <p className="text-xs font-bold text-gray-900 uppercase tracking-wide">BP: {reportData.patient.vitals.bp} | HR: {reportData.patient.vitals.hr} | T: {reportData.patient.vitals.temp}</p>
+                        <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5 border-b border-gray-100 pb-1">Historical Vitals Snapshot</p>
+                        <p className="text-xs font-extrabold text-gray-900 uppercase tracking-wide">BP: <span className="font-bold">{reportData.patient.vitals.bp}</span> | HR: <span className="font-bold">{reportData.patient.vitals.hr}</span> | TEMP: <span className="font-bold">{reportData.patient.vitals.temp}</span></p>
                      </div>
                      <div>
-                        <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1">Attending</p>
+                        <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5 border-b border-gray-100 pb-1">Attending Specialist</p>
                         <p className="text-xs font-bold text-gray-900 uppercase tracking-wide">{reportData.patient.doctor}</p>
                      </div>
                    </div>
                    <div>
-                      <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1">Active Medications / Treatment Plan</p>
-                      <ul className="flex flex-col gap-1 mt-1">
-                        {reportData.patient.meds.map((m, i) => <li key={i} className="text-xs font-bold text-gray-800 flex gap-2 items-center"><div className="w-1.5 h-1.5 bg-gray-900 rounded-sm"></div> {m}</li>)}
+                      <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest mb-1.5 border-b border-gray-100 pb-1">Active Medical Treatment Plan</p>
+                      <ul className="flex flex-col gap-1.5 mt-2">
+                        {reportData.patient.meds.map((m, i) => <li key={i} className="text-xs font-bold text-gray-800 flex gap-2 items-center"><div className="w-1 h-1 bg-gray-900 rounded-sm"></div> {m}</li>)}
                       </ul>
                    </div>
                    {reportData.type === 'discharge' && (
-                     <div className="mt-6 pt-4 border-t border-gray-200">
-                        <p className="text-[10px] font-extrabold text-gray-900 uppercase tracking-widest mb-2">Discharge Instructions</p>
-                        <p className="text-xs font-bold text-gray-600 leading-relaxed max-w-lg">Patient advised to maintain adequate rest. Follow up in the Outpatient Department (OPD) after 7 days. Continue all prescribed daily medications strictly as directed. In case of unexpected emergency or onset of new acute symptoms, report immediately to the facility.</p>
+                     <div className="mt-8 pt-6 border-t border-gray-200">
+                        <p className="text-[10px] font-extrabold text-gray-900 uppercase tracking-widest mb-2.5">Official Discharge Instructions</p>
+                        <p className="text-xs font-bold text-gray-600 leading-relaxed max-w-2xl bg-gray-50 p-4 border-l-4 border-gray-900">Patient is advised to maintain adequate rest and follow up in the Outpatient Department (OPD) after 7 days. Continue all prescribed daily medications strictly as directed. In case of unexpected emergency or onset of new acute symptoms, report immediately to the clinical facility.</p>
                      </div>
                    )}
+
+                   <div className="mt-12 pt-8 text-center border-t border-gray-200">
+                      <p className="text-[9px] text-gray-400 font-extrabold tracking-widest uppercase">
+                         /// VERIFIED BY WARDWATCH SYSTEM ///
+                      </p>
+                   </div>
                 </div>
              </div>
              
              <div className="flex justify-end pt-2">
                 <Button 
                    onClick={() => { 
-                      toast.success(`${reportData.type === 'discharge' ? 'Discharge Summary' : 'Clinical Report'} sent to printer queue.`); 
-                      setReportData(null); 
+                      toast.success(`Initializing secure PDF engine...`); 
+                      handlePrintClinicalReport();
                    }} 
                    className="px-6 py-3 bg-gray-900 hover:bg-black text-white text-[10px] font-extrabold uppercase tracking-widest shadow-none border-none"
                 >
-                   Print Document
+                   Print / Export PDF
                 </Button>
              </div>
           </div>
@@ -679,7 +728,7 @@ const DoctorDashboard = () => {
                                     <div>
                                         <span className="inline-block text-[9px] font-extrabold text-red-900 uppercase tracking-widest bg-red-200 px-2 py-1 rounded-sm mr-2 mb-2">{e.type.replace(/-/g, ' ')}</span>
                                         <span className="text-sm font-bold text-gray-900 leading-snug block">{e.description || "System flagged an actionable escalation."}</span>
-                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2 m-0">Location Anchor: {(e.wardId && e.wardId.wardName) ? e.wardId.wardName : "Unknown"} — Bed {(e.relatedBedId && e.relatedBedId.bedNumber) ? e.relatedBedId.bedNumber : "N/A"}</p>
+                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2 m-0">Location Anchor: {(e.wardId && e.wardId.wardName) ? e.wardId.wardName : "Global Queue"} — Bed {(e.relatedBedId && e.relatedBedId.bedNumber) ? e.relatedBedId.bedNumber : "Unassigned"}</p>
                                     </div>
                                     <span className="text-[10px] font-extrabold text-gray-500 tracking-widest whitespace-nowrap">{new Date(e.createdAt).toLocaleTimeString()}</span>
                                 </div>
@@ -689,7 +738,7 @@ const DoctorDashboard = () => {
                                     <div>
                                         <span className="inline-block text-[9px] font-extrabold text-orange-900 uppercase tracking-widest bg-orange-200 px-2 py-1 rounded-sm mr-2 mb-2">{e.type.replace(/-/g, ' ')}</span>
                                         <span className="text-sm font-bold text-gray-900 leading-snug block">{e.description || "System flagged a workflow delay."}</span>
-                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2 m-0">Location Anchor: {(e.wardId && e.wardId.wardName) ? e.wardId.wardName : "Unknown"} — Bed {(e.relatedBedId && e.relatedBedId.bedNumber) ? e.relatedBedId.bedNumber : "N/A"}</p>
+                                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mt-2 m-0">Location Anchor: {(e.wardId && e.wardId.wardName) ? e.wardId.wardName : "Global Queue"} — Bed {(e.relatedBedId && e.relatedBedId.bedNumber) ? e.relatedBedId.bedNumber : "Unassigned"}</p>
                                     </div>
                                     <span className="text-[10px] font-extrabold text-gray-500 tracking-widest whitespace-nowrap">{new Date(e.createdAt).toLocaleTimeString()}</span>
                                 </div>
@@ -803,26 +852,45 @@ const DoctorDashboard = () => {
       {/* Historical Shifts Modal */}
       <Modal isOpen={isHistoryOpen} onClose={() => setIsHistoryOpen(false)} title="SHIFT HANDOVER CONTINUITY LOG">
          <div className="space-y-4">
-            <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest leading-relaxed mb-4">
+            <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest leading-relaxed mb-2">
                Access previously generated automated hospital shift snapshots to maintain immutable handover continuity.
             </p>
-            {historyDocs.length > 0 ? (
-               <div className="max-h-[60vh] overflow-y-auto space-y-3">
-                  {historyDocs.map((doc, i) => (
-                     <div key={i} className="flex justify-between items-center p-4 border border-gray-200 rounded-sm hover:border-gray-900 hover:shadow-sm transition cursor-pointer" onClick={() => loadHistoricalHandover(doc.shareId)}>
-                        <div>
-                           <p className="text-xs font-extrabold tracking-widest uppercase text-gray-900">{doc.shiftName}</p>
-                           <p className="text-[9px] font-bold text-gray-500 uppercase mt-1">{new Date(doc.generatedAt).toLocaleString()}</p>
+            
+            <div className="flex gap-2 mb-4 bg-gray-50 p-2 rounded border border-gray-100 w-max">
+               <button onClick={() => setHistoryFilter('12h')} className={`text-[9px] px-4 py-1.5 rounded uppercase font-extrabold tracking-widest transition-colors ${historyFilter === '12h' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'}`}>Past 12h</button>
+               <button onClick={() => setHistoryFilter('24h')} className={`text-[9px] px-4 py-1.5 rounded uppercase font-extrabold tracking-widest transition-colors ${historyFilter === '24h' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'}`}>Past 24h</button>
+               <button onClick={() => setHistoryFilter('all')} className={`text-[9px] px-4 py-1.5 rounded uppercase font-extrabold tracking-widest transition-colors ${historyFilter === 'all' ? 'bg-gray-900 text-white shadow-sm' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'}`}>All Time</button>
+            </div>
+
+            {(() => {
+               const filteredDocs = historyDocs.filter(doc => {
+                  if (historyFilter === "all") return true;
+                  const hoursAgo = (new Date() - new Date(doc.generatedAt)) / (1000 * 60 * 60);
+                  if (historyFilter === "12h") return hoursAgo <= 12;
+                  if (historyFilter === "24h") return hoursAgo <= 24;
+                  return true;
+               });
+               return filteredDocs.length > 0 ? (
+                  <div className="max-h-[60vh] overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                     {filteredDocs.map((doc, i) => (
+                        <div key={i} className="flex justify-between items-center p-4 border border-gray-200 rounded-sm hover:border-gray-900 hover:shadow-sm transition cursor-pointer bg-white" onClick={() => loadHistoricalHandover(doc.shareId)}>
+                           <div>
+                              <p className="text-xs font-extrabold tracking-widest uppercase text-gray-900">{doc.shiftName}</p>
+                              <p className="text-[9px] font-bold text-gray-500 uppercase mt-1">{new Date(doc.generatedAt).toLocaleString()}</p>
+                           </div>
+                           <div className="flex gap-2">
+                              <Button variant="outline" className="text-[9px] px-4 py-2 uppercase font-extrabold tracking-widest shadow-none hover:bg-gray-900 hover:text-white hover:border-gray-900">View</Button>
+                              <Button variant="outline" onClick={(e) => handleDeleteHandover(doc.shareId, e)} className="text-[9px] px-3 py-2 uppercase font-extrabold tracking-widest text-red-600 border-gray-200 hover:border-red-200 hover:bg-red-50 hover:text-red-700 shadow-none"><X size={14} strokeWidth={2.5} /></Button>
+                           </div>
                         </div>
-                        <Button variant="outline" className="text-[9px] px-4 py-2 uppercase font-extrabold tracking-widest shadow-none">View</Button>
-                     </div>
-                  ))}
-               </div>
-            ) : (
-               <div className="p-8 text-center bg-gray-50 border border-gray-100 rounded">
-                  <p className="text-xs font-extrabold tracking-widest uppercase text-gray-500">No shift archives located yet.</p>
-               </div>
-            )}
+                     ))}
+                  </div>
+               ) : (
+                  <div className="p-8 text-center bg-gray-50 border border-gray-100 rounded">
+                     <p className="text-xs font-extrabold tracking-widest uppercase text-gray-500">No shift archives located for this timeframe.</p>
+                  </div>
+               );
+            })()}
             <div className="flex justify-end pt-4 border-t border-gray-100">
                <Button variant="outline" onClick={() => setIsHistoryOpen(false)} className="text-[10px] uppercase font-extrabold tracking-widest px-6 shadow-none">Close</Button>
             </div>

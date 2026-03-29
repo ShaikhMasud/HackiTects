@@ -1,8 +1,8 @@
 import Button from "./Button";
-import { Download, FileText } from "lucide-react";
+import { Download, FileText, Trash2 } from "lucide-react";
 import { toast } from "react-toastify";
 
-const PatientClinicalTable = ({ patients, onReview, onReport }) => {
+const PatientClinicalTable = ({ patients, onReview, onReport, onDelete }) => {
   return (
     <div className="w-full bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden flex flex-col">
       <div className="px-8 py-5 border-b border-gray-200 bg-gray-50 flex justify-between items-center">
@@ -13,7 +13,7 @@ const PatientClinicalTable = ({ patients, onReview, onReport }) => {
       </div>
       {patients.length > 0 ? (
         <div className="w-full overflow-x-auto flex-1">
-          <table className="w-full min-w-[900px] divide-y divide-gray-200">
+          <table className="w-full min-w-[950px] divide-y divide-gray-200">
             <thead className="bg-white">
               <tr>
                 <th className="px-8 py-4 text-left text-[11px] font-extrabold text-gray-400 uppercase tracking-widest">Patient / Bed</th>
@@ -71,10 +71,15 @@ const PatientClinicalTable = ({ patients, onReview, onReport }) => {
                        </button>
                     )}
                   </td>
-                  <td className="px-8 py-6 whitespace-nowrap text-right">
+                  <td className="px-8 py-6 whitespace-nowrap text-right flex items-center justify-end gap-2">
                     <Button variant="outline" size="sm" onClick={() => onReview(p)} className="text-gray-900 bg-white border-2 border-gray-200 hover:border-gray-900 shadow-none text-[10px] px-4 py-2 font-extrabold uppercase tracking-widest">
                       Review Chart
                     </Button>
+                    {p.status === 'cleared_for_discharge' && (
+                      <Button variant="outline" size="sm" onClick={() => onDelete && onDelete(p.id)} className="text-red-500 bg-gray-50 border-2 border-gray-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200 shadow-none px-3 py-2 transition-colors" title="Remove Discharged Patient">
+                        <Trash2 size={13} strokeWidth={2.5} />
+                      </Button>
+                    )}
                   </td>
                 </tr>
               ))}

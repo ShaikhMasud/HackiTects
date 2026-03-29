@@ -149,6 +149,8 @@ exports.getHandoverHistory = async (req, res) => {
    }
 };
 
+
+
 /**
  * 🔗 Access shared read-only snapshot securely using unique UUID Token (Allows continuity!)
  */
@@ -164,5 +166,19 @@ exports.getSharedHandover = async (req, res) => {
       });
    } catch(e) {
       res.status(500).json({ success: false });
+   }
+};
+
+/**
+ * 🗑️ Delete specific historical handover snapshot
+ */
+exports.deleteHandover = async (req, res) => {
+   try {
+      const deleted = await HandoverSnapshot.findOneAndDelete({ shareId: req.params.shareId });
+      if(!deleted) return res.status(404).json({ success: false, message: "Handover not found." });
+      
+      res.json({ success: true, message: "Snapshot successfully deleted." });
+   } catch(e) {
+      res.status(500).json({ success: false, message: e.message });
    }
 };
